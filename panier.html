@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Panier - Afrimarket</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <style>
+        /* Style pour la fenêtre modale de livraison */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            color: #0B5345;
+        }
+        .btn-fermer-modal {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Mon Panier Afrimarket</h1>
+        <p>Finalisez votre commande en toute sécurité.</p>
+        <nav class="menu-categories">
+            <a href="index.html">🏠 Retour à l'Accueil</a>
+            <a href="panier.html" id="bouton-panier" style="background-color: #E67E22;">🛒 Panier (<span id="compteur">0</span>)</a>
+        </nav>
+    </header>
+
+    <main class="conteneur-panier">
+        <h2>Détails de vos articles</h2>
+        
+        <div id="panier-avec-articles">
+            <table class="tableau-panier">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>Prix Unitaire</th>
+                        <th>Quantité</th>
+                        <th>Sous-total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="corps-du-tableau">
+                    </tbody>
+            </table>
+
+            <div class="resume-panier">
+                <div class="boite-total">
+                    <h3>Résumé de la commande</h3>
+                    <div class="ligne-resume">
+                        <span>Sous-total</span>
+                        <span id="resume-sous-total">0 FCFA</span>
+                    </div>
+                    <div class="ligne-resume">
+                        <span>Frais de livraison</span>
+                        <span style="color: #27ae60; font-weight: bold;">Gratuit</span>
+                    </div>
+                    <hr>
+                    <div class="ligne-resume total">
+                        <span>Total à payer</span>
+                        <span id="total-final">0 FCFA</span>
+                    </div>
+                    <button class="btn-commander" onclick="ouvrirModalLivraison()">🛒 Passer la commande</button>
+                    <button class="btn-commander" onclick="viderLePanier()" style="background-color: #c0392b; margin-top: 10px;">🗑️ Vider le panier</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="panier-vide" style="display: none; text-align: center; padding: 40px 20px;">
+            <p style="font-size: 1.2em; color: #7f8c8d;">Votre panier Afrimarket est vide pour le moment. 🛒</p>
+            <a href="index.html" class="btn-acheter" style="display: inline-block; width: auto; padding: 12px 30px; text-decoration: none; margin-top: 15px;">Retourner à l'accueil</a>
+        </div>
+
+    </main>
+
+    <!-- MODAL POUR LES INFORMATIONS DE LIVRAISON -->
+    <div id="modal-livraison" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Informations pour la livraison</h3>
+            <p style="font-size: 0.9em; color: #555;">Veuillez remplir ces champs pour que le vendeur puisse vous livrer.</p>
+            <div class="groupe-champ">
+                <label for="livraison-nom">Nom complet</label>
+                <input type="text" id="livraison-nom" placeholder="Ex: Jean-Pierre Samba">
+            </div>
+            <div class="groupe-champ">
+                <label for="livraison-tel">Numéro de téléphone (avec indicatif)</label>
+                <input type="tel" id="livraison-tel" placeholder="Ex: +242 06 123 4567">
+            </div>
+            <div class="groupe-champ">
+                <label for="livraison-ville">Ville</label>
+                <select id="livraison-ville">
+                    <option value="Brazzaville">Brazzaville</option>
+                    <option value="Pointe-Noire">Pointe-Noire</option>
+                    <option value="Dolisie">Dolisie</option>
+                    <option value="Nkayi">Nkayi</option>
+                    <option value="Impfondo">Impfondo</option>
+                    <option value="Ouesso">Ouesso</option>
+                    <option value="Owando">Owando</option>
+                    <option value="Madingou">Madingou</option>
+                </select>
+            </div>
+            <div class="groupe-champ">
+                <label for="livraison-adresse">Adresse ou quartier</label>
+                <textarea id="livraison-adresse" rows="3" placeholder="Ex: Centre-ville, avenue des Armées, près de la grande poste."></textarea>
+            </div>
+            <button class="btn-commander" onclick="confirmerCommande()">✅ Confirmer et payer à la livraison</button>
+            <button class="btn-fermer-modal" onclick="fermerModalLivraison()" style="margin-top: 10px;">Annuler</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2026 Afrimarket. Tous droits réservés.</p>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        const modal = document.getElementById("modal-livraison");
+
+        function ouvrirModalLivraison() {
+            if (panier.length === 0) {
+                alert("Votre panier est vide.");
+                return;
+            }
+            modal.classList.add("active");
+        }
+
+        function fermerModalLivraison() {
+            modal.classList.remove("active");
+        }
+
+        function confirmerCommande() {
+            // Cette fonction va maintenant appeler une fonction plus globale dans script.js
+            const infosLivraison = {
+                nom: document.getElementById("livraison-nom").value,
+                tel: document.getElementById("livraison-tel").value,
+                ville: document.getElementById("livraison-ville").value,
+                adresse: document.getElementById("livraison-adresse").value
+            };
+            
+            // On appelle la fonction centrale qui va gérer la création de la commande
+            creerCommande(infosLivraison);
+        }
+    </script>
+</body>
+</html>

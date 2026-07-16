@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 95" width="400" height="95">
+
+  <!-- Lettre A en rouge -->
+  <text x="2" y="58"
+    font-family="'Arial Black', 'Helvetica Neue', sans-serif"
+    font-size="62"
+    font-weight="900"
+    fill="#c0392b">A</text>
+
+  <!-- "frimarket" en vert foncé -->
+  <text x="46" y="58"
+    font-family="'Arial Black', 'Helvetica Neue', sans-serif"
+    font-size="62"
+    font-weight="900"
+    fill="#0B5345">frimarket</text>
+
+  <!-- Trait fin rouge sous le texte principal -->
+  <rect x="2" y="66" width="390" height="2.5" rx="2" fill="#c0392b"/>
+
+  <!-- Tagline bien espacée en dessous -->
+  <text x="4" y="86"
+    font-family="'Arial', sans-serif"
+    font-size="11"
+    font-weight="400"
+    fill="#555"
+    letter-spacing="4">LA MARKETPLACE DU CONGO</text>
+
+</svg>

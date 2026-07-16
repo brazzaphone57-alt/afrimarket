@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suivi de commande - Afrimarket</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    .conteneur-suivi {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-bottom: 30px;
+    }
+
+    .carte-acces {
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .alert {
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin-bottom: 18px;
+      display: none;
+      font-weight: 600;
+    }
+    .alert-danger { background: #fff1f1; color: #b00020; border: 1px solid #ffccd1; }
+
+    .etapes-progress {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 18px 0 22px;
+      flex-wrap: wrap;
+    }
+
+    .etape {
+      flex: 1;
+      min-width: 150px;
+      background: #f4f6f6;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 700;
+      color: #555;
+      opacity: 0.85;
+    }
+
+    .etape.active {
+      background: #E67E22;
+      border-color: #D35400;
+      color: white;
+      opacity: 1;
+    }
+
+    .resume-commande {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 18px;
+      align-items: center;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+
+    .resume-commande img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+
+    .resume-texte .ligne { margin: 6px 0; color: #555; font-size: 0.95em; }
+    .resume-texte .ligne strong { color: #2c3e50; }
+
+    .localisation {
+      margin-top: 18px;
+      background: #fdf2e9;
+      border-left: 5px solid #E67E22;
+      padding: 14px 16px;
+      border-radius: 8px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .livraison-date {
+      margin-top: 14px;
+      font-size: 1.05em;
+      font-weight: 800;
+      color: #0B5345;
+    }
+
+    .btn-contact {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px 14px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 800;
+      background: #27ae60;
+      color: white;
+      margin-top: 10px;
+      text-decoration: none;
+    }
+
+    .btn-contact.secondary { background: #0B5345; }
+
+    .btn-contact.hidden { display: none; }
+
+    .bloc-avis, .bloc-probleme, .bloc-confirmation {
+      margin-top: 20px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .etoiles {
+      display: flex;
+      gap: 6px;
+      font-size: 24px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .etoile { color: #ddd; }
+    .etoile.active { color: #f5a623; }
+
+    .form-probleme select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-size: 15px;
+    }
+
+    .form-probleme textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 15px;
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .row-buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-orange {
+      background-color: #E67E22;
+      color: white;
+      border: none;
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 900;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .btn-ghost {
+      background: none;
+      border: 1px solid #ccc;
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 800;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .grid-produit {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 18px;
+      align-items: center;
+    }
+
+    @media (max-width: 700px) {
+      .etape { min-width: 130px; }
+      .resume-commande { grid-template-columns: 90px 1fr; }
+      .resume-commande img { width: 90px; height: 90px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Suivi de commande Afrimarket 🇨🇬</h1>
+    <p>Entrez vos informations pour suivre l’avancement.</p>
+    <nav class="menu-categories">
+      <a href="index.html">🏠 Accueil</a>
+      <a href="commandes.html">📦 Mes commandes</a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="alerte-retard" class="alert alert-danger"></div>
+
+    <div id="bloc-acces" class="conteneur-suivi carte-acces">
+      <h2>Accès au suivi</h2>
+      <p style="color:#666; margin-top:-6px;">Votre numéro de commande et votre numéro de téléphone doivent correspondre.</p>
+
+      <div class="groupe-champ">
+        <label for="champ-commande">Numéro de commande</label>
+        <input type="text" id="champ-commande" placeholder="Ex: AFRI-169..." required>
+      </div>
+
+      <div class="groupe-champ">
+        <label for="champ-tel">Numéro de téléphone</label>
+        <input type="text" id="champ-tel" placeholder="Ex: 06..." required>
+      </div>
+
+      <button class="btn-orange" id="btn-acceder" type="button">Accéder au suivi</button>
+      <div id="msg-erreur" style="margin-top:14px; color:#c0392b; font-weight:700; display:none;"></div>
+    </div>
+
+    <div id="bloc-suivi" style="display:none;">
+      <div class="conteneur-suivi">
+        <h2>Suivi en temps réel</h2>
+
+        <div class="etapes-progress" id="progress-steps">
+          <div class="etape" data-step="0">Commande reçue</div>
+          <div class="etape" data-step="1">Paiement confirmé</div>
+          <div class="etape" data-step="2">Vendeur en préparation</div>
+          <div class="etape" data-step="3">Livreur en route</div>
+          <div class="etape" data-step="4">Livré</div>
+        </div>
+
+        <div class="resume-commande">
+          <img id="img-produit" src="" alt="Produit">
+          <div class="resume-texte">
+            <div class="ligne"><strong>Produit :</strong> <span id="nom-produit">-</span></div>
+            <div class="ligne"><strong>Montant payé :</strong> <span id="montant-paye">-</span></div>
+            <div class="ligne"><strong>Date de commande :</strong> <span id="date-commande">-</span></div>
+            <div class="ligne"><strong>Délai estimé :</strong> <span id="delai-estime">-</span></div>
+          </div>
+        </div>
+
+        <div class="localisation" id="localisation-texte">-</div>
+        <div class="livraison-date" id="date-livraison">-</div>
+
+        <div style="margin-top:18px;">
+          <a id="btn-whatsapp-service" class="btn-contact" target="_blank" rel="noopener noreferrer" href="#">💬 WhatsApp service client</a>
+          <a id="btn-whatsapp-livreur" class="btn-contact secondary hidden" target="_blank" rel="noopener noreferrer" href="#">🚚 WhatsApp livreur</a>
+        </div>
+
+        <div class="bloc-confirmation">
+          <button class="btn-orange" id="btn-confirmer" type="button" style="margin-top:0;">✅ Confirmer la réception</button>
+          <div id="msg-apres-confirmation" style="display:none; margin-top:12px; color:#0B5345; font-weight:800;"></div>
+        </div>
+
+        <div id="bloc-avis" class="bloc-avis" style="display:none;">
+          <h3>📣 Laissez un avis</h3>
+          <p style="color:#666; margin-top:-6px;">Notez le produit et le vendeur (1 à 5 étoiles).</p>
+
+          <div class="etoiles" id="rating" aria-label="Choisir une note" role="radiogroup">
+            <span class="etoile" data-note="1">★</span>
+            <span class="etoile" data-note="2">★</span>
+            <span class="etoile" data-note="3">★</span>
+            <span class="etoile" data-note="4">★</span>
+            <span class="etoile" data-note="5">★</span>
+          </div>
+
+          <input type="hidden" id="note-choisie" value="0">
+
+          <div class="groupe-champ">
+            <label for="commentaire">Commentaire (optionnel)</label>
+            <textarea id="commentaire" rows="3" placeholder="Votre avis..."></textarea>
+          </div>
+
+          <button class="btn-orange" id="btn-envoyer-avis" type="button">Envoyer mon avis</button>
+        </div>
+
+        <div class="bloc-probleme">
+          <button class="btn-ghost" id="btn-signaler" type="button">⚠️ Signaler un problème</button>
+
+          <div id="form-probleme" class="form-probleme" style="display:none; margin-top:14px;">
+            <div class="groupe-champ">
+              <label for="probleme-type">Choisir l’option</label>
+              <select id="probleme-type">
+                <option value="Colis non reçu">Colis non reçu</option>
+                <option value="Produit abîmé">Produit abîmé</option>
+                <option value="Produit non conforme à l'annonce">Produit non conforme à l'annonce</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
+
+            <div class="groupe-champ">
+              <label for="probleme-commentaire">Détail (optionnel)</label>
+              <textarea id="probleme-commentaire" rows="3" placeholder="Décrivez brièvement le problème..."></textarea>
+            </div>
+
+            <button class="btn-orange" id="btn-envoyer-probleme" type="button">Envoyer le signalement</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer><p>© 2026 Afrimarket. Tous droits réservés.</p></footer>
+
+  <script>
+    const NOM_ADMIN_WHATSAPP = "+242060000000";
+
+    function normalizeTel(t) {
+      return String(t || "").replace(/\s/g, "").trim();
+    }
+
+    function getCommandeParIdEtTel(commandeId, tel) {
+      const historique = JSON.parse(localStorage.getItem("historiqueCommandes")) || [];
+      return historique.find(cmd => String(cmd.id) === String(commandeId) && cmd.livraison && normalizeTel(cmd.livraison.tel) === normalizeTel(tel)) || null;
+    }
+
+    function mapStatutToStep(statut) {
+      const s = String(statut || "");
+      if (s === "En attente") return 0;
+      if (s === "Paiement confirmé") return 1;
+      if (s === "En préparation") return 2;
+      if (s === "En cours de livraison") return 3;
+      if (s === "Livrée" || s === "Livrée") return 4;
+      if (s === "Livrée") return 4;
+      if (s === "Livrée" || s === "Livré") return 4;
+      if (s === "Livrée") return 4;
+      if (s === "Livrée") return 4;
+      // fallback : si non reconnu
+      return 0;
+    }
+
+    function getLocalisationTexte(step) {
+      switch(step) {
+        case 0: return "Votre commande a été reçue. Nous préparons la suite.";
+        case 1: return "Le paiement est confirmé. Le vendeur va préparer votre commande.";
+        case 2: return "Le colis est en cours de préparation chez le vendeur.";
+        case 3: return "Le livreur est en route vers votre adresse.";
+        case 4: return "Votre colis est livré. Merci pour votre confiance !";
+        default: return "-";
+      }
+    }
+
+    function calcDelaiEtDateEstimee(step, cmd) {
+      // Base simple : 2 jours au total + 12h par étape (simulation)
+      // Retard : si statut > step prévu ? non.
+      const dateCommande = new Date(cmd.date);
+      const joursBase = 2;
+      const heuresParStep = 12;
+      const totalHours = (joursBase * 24) + (step * heuresParStep);
+      const dateEstimee = new Date(dateCommande.getTime() + totalHours * 3600 * 1000);
+
+      // Retard simulé si le statut n'est pas encore à l'étape finale mais la date est dépassée (selon date)
+      const maintenant = new Date();
+      const enRetard = step < 4 && dateEstimee.getTime() < maintenant.getTime();
+
+      return {
+        enRetard,
+        dateEstimee,
+        delaiEstime: Math.ceil(totalHours / 24) + " jours"
+      };
+    }
+
+    function setStepActive(step) {
+      document.querySelectorAll('#progress-steps .etape').forEach(el => {
+        el.classList.toggle('active', Number(el.dataset.step) === Number(step));
+      });
+    }
+
+    function getFirstProduit(cmd) {
+      const ps = (cmd.produits || []);
+      if (ps.length === 0) return { nom: "-", image: "", prix: 0 };
+      const p = ps[0];
+      return { nom: p.nom, image: p.image, prix: p.prix };
+    }
+
+    function formatDateTime(d) {
+      const dd = new Date(d);
+      return dd.toLocaleString('fr-FR', { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function buildWhatsAppLink(numTel, message) {
+      return `https://wa.me/${String(numTel).replace(/\s/g,'')}?text=${encodeURIComponent(message)}`;
+    }
+
+    let state = { cmd: null, step: 0, tel: "" };
+
+    document.getElementById('btn-acceder').addEventListener('click', () => {
+      const commandeId = document.getElementById('champ-commande').value.trim();
+      const tel = document.getElementById('champ-tel').value.trim();
+
+      const msgErreur = document.getElementById('msg-erreur');
+      msgErreur.style.display = 'none';
+
+      if (!commandeId || !tel) {
+        msgErreur.textContent = "Veuillez remplir tous les champs requis.";
+        msgErreur.style.display = 'block';
+        return;
+      }
+
+      const cmd = getCommandeParIdEtTel(commandeId, tel);
+      if (!cmd) {
+        msgErreur.textContent = "Informations incorrectes. Vérifiez le numéro de commande et le téléphone.";
+        msgErreur.style.display = 'block';
+        return;
+      }
+
+      state.cmd = cmd;
+      state.tel = tel;
+
+      // Déduire step
+      const step = mapStatutToStep(cmd.statut);
+      state.step = step;
+
+      // Afficher bloc suivi
+      document.getElementById('bloc-acces').style.display = 'none';
+      document.getElementById('bloc-suivi').style.display = 'block';
+
+      // Retard
+      const { enRetard, dateEstimee, delaiEstime } = calcDelaiEtDateEstimee(step, cmd);
+
+      const alerte = document.getElementById('alerte-retard');
+      if (enRetard) {
+        alerte.style.display = 'block';
+        alerte.textContent = `⚠️ Retard détecté : votre commande aura probablement besoin d’un nouveau délai estimé. Nouveau délai : ${delaiEstime}.`;
+
+        // Notification WhatsApp (ouvre une fenêtre)
+        const url = buildWhatsAppLink(cmd.livraison.tel, `Bonjour, nous avons un retard sur votre commande Afrimarket n°${cmd.id}. Nouveau délai estimé : ${delaiEstime}. Merci de votre compréhension.`);
+        window.open(url, '_blank');
+      } else {
+        alerte.style.display = 'none';
+      }
+
+      // Progression
+      setStepActive(step);
+
+      // Résumé
+      const premier = getFirstProduit(cmd);
+      document.getElementById('img-produit').src = premier.image || '';
+      document.getElementById('nom-produit').textContent = premier.nom || '-';
+      document.getElementById('montant-paye').textContent = (cmd.total || 0).toLocaleString() + ' FCFA';
+      document.getElementById('date-commande').textContent = new Date(cmd.date).toLocaleDateString('fr-FR');
+      document.getElementById('delai-estime').textContent = delaiEstime;
+
+      // Localisation
+      document.getElementById('localisation-texte').textContent = getLocalisationTexte(step);
+
+      // Date/heure estimée livraison
+      document.getElementById('date-livraison').textContent = "📅 Livraison estimée : " + formatDateTime(dateEstimee);
+
+      // Boutons WhatsApp
+      const messageService = `Bonjour Afrimarket, je souhaite un suivi pour ma commande n°${cmd.id}. (Téléphone: ${cmd.livraison.tel})`;
+      document.getElementById('btn-whatsapp-service').href = buildWhatsAppLink(NOM_ADMIN_WHATSAPP, messageService);
+
+      const btnLivreur = document.getElementById('btn-whatsapp-livreur');
+      if (step >= 3 && step < 4) {
+        btnLivreur.classList.remove('hidden');
+        const messageLivreur = `Bonjour, je vous contacte concernant la livraison de ma commande n°${cmd.id}. Merci.`;
+        // On n’a pas de tel livreur : on utilise le numéro fictif admin pour la démo
+        btnLivreur.href = buildWhatsAppLink(NOM_ADMIN_WHATSAPP, messageLivreur);
+      } else {
+        btnLivreur.classList.add('hidden');
+      }
+
+      // Etat confirmation / avis / problème
+      const avisKey = `avisCommande_${cmd.id}`;
+      const avisExiste = localStorage.getItem(avisKey);
+
+      const recuKey = `commande_recue_${cmd.id}`;
+      const recu = localStorage.getItem(recuKey) === '1';
+
+      document.getElementById('msg-apres-confirmation').style.display = 'none';
+
+      if (recu || step === 4) {
+        document.getElementById('btn-confirmer').disabled = true;
+        document.getElementById('btn-confirmer').textContent = '✅ Réception confirmée';
+        document.getElementById('bloc-avis').style.display = 'block';
+      } else {
+        document.getElementById('btn-confirmer').disabled = false;
+        document.getElementById('btn-confirmer').textContent = '✅ Confirmer la réception';
+        document.getElementById('bloc-avis').style.display = 'none';
+      }
+
+      // Rating init
+      initRating();
+
+      // Si avis existe : on pré-remplit la note
+      if (avisExiste) {
+        try {
+          const a = JSON.parse(avisExiste);
+          document.getElementById('note-choisie').value = a.note || 0;
+          renderRating(a.note || 0);
+          document.getElementById('commentaire').value = a.commentaire || '';
+          document.getElementById('bloc-avis').style.display = 'block';
+        } catch(e) {}
+      }
+    });
+
+    function initRating() {
+      const etoiles = document.querySelectorAll('#rating .etoile');
+      etoiles.forEach(star => {
+        star.onclick = () => {
+          const note = Number(star.dataset.note);
+          document.getElementById('note-choisie').value = note;
+          renderRating(note);
+        };
+      });
+      renderRating(Number(document.getElementById('note-choisie').value) || 0);
+    }
+
+    function renderRating(note) {
+      document.querySelectorAll('#rating .etoile').forEach(star => {
+        const n = Number(star.dataset.note);
+        star.classList.toggle('active', n <= note);
+      });
+    }
+
+    document.getElementById('btn-confirmer').addEventListener('click', () => {
+      if (!state.cmd) return;
+      const cmd = state.cmd;
+
+      // Débloquer paiement (simulation)
+      const keyRecu = `commande_recue_${cmd.id}`;
+      localStorage.setItem(keyRecu, '1');
+
+      const historique = JSON.parse(localStorage.getItem('historiqueCommandes')) || [];
+      const idx = historique.findIndex(c => c.id === cmd.id);
+      if (idx !== -1) {
+        historique[idx].statut = 'Livrée';
+        localStorage.setItem('historiqueCommandes', JSON.stringify(historique));
+      }
+
+      // UI
+      document.getElementById('btn-confirmer').disabled = true;
+      document.getElementById('btn-confirmer').textContent = '✅ Réception confirmée';
+      document.getElementById('msg-apres-confirmation').style.display = 'block';
+      document.getElementById('msg-apres-confirmation').textContent = 'Paiement déverrouillé pour le vendeur. Merci !';
+
+      // Afficher avis
+      document.getElementById('bloc-avis').style.display = 'block';
+
+      // Notification WhatsApp (optionnel)
+      const url = buildWhatsAppLink(cmd.livraison.tel, `Bonjour, merci ! Vous venez de confirmer la réception de votre commande Afrimarket n°${cmd.id}.`);
+      window.open(url, '_blank');
+
+      // Mettre à jour localisation / steps rapidement
+      state.step = 4;
+      setStepActive(4);
+      document.getElementById('localisation-texte').textContent = getLocalisationTexte(4);
+    });
+
+    document.getElementById('btn-envoyer-avis').addEventListener('click', () => {
+      if (!state.cmd) return;
+      const cmd = state.cmd;
+      const note = Number(document.getElementById('note-choisie').value || 0);
+      const commentaire = document.getElementById('commentaire').value.trim();
+      if (note < 1 || note > 5) {
+        alert('Veuillez sélectionner une note de 1 à 5 étoiles.');
+        return;
+      }
+
+      const produit = getFirstProduit(cmd);
+      const keyAvisProduit = `avis_${produit.nom}`;
+      const avis = JSON.parse(localStorage.getItem(keyAvisProduit)) || [];
+      avis.push({ note, commentaire, date: new Date().toISOString() });
+      localStorage.setItem(keyAvisProduit, JSON.stringify(avis));
+
+      const keyAvisCommande = `avisCommande_${cmd.id}`;
+      localStorage.setItem(keyAvisCommande, JSON.stringify({ note, commentaire }));
+
+      alert('✅ Avis envoyé. Merci !');
+    });
+
+    document.getElementById('btn-signaler').addEventListener('click', () => {
+      const form = document.getElementById('form-probleme');
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+
+    document.getElementById('btn-envoyer-probleme').addEventListener('click', () => {
+      if (!state.cmd) return;
+      const cmd = state.cmd;
+      const type = document.getElementById('probleme-type').value;
+      const commentaire = document.getElementById('probleme-commentaire').value.trim();
+
+      const key = `problemeCommande_${cmd.id}`;
+      localStorage.setItem(key, JSON.stringify({ type, commentaire, date: new Date().toISOString() }));
+
+      // Notification WhatsApp (admin)
+      const message = `Bonjour, nouveau signalement pour la commande Afrimarket n°${cmd.id}.\nType: ${type}\nCommentaire: ${commentaire || '-'}\nVendeur: (selon commande).`;
+      const url = buildWhatsAppLink(NOM_ADMIN_WHATSAPP, message);
+      window.open(url, '_blank');
+
+      alert('Signalement envoyé. Merci.');
+      document.getElementById('form-probleme').style.display = 'none';
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Détail produit - Afrimarket</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    :root { --main:#1a5c38; --accent:#e67e22; --bg:#f5f5f5; }
+    body{ background:var(--bg); margin:0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color:#333; }
+
+    /* Header compact mobile (≤ 60px) */
+    .header-mobile{
+      position:fixed; left:0; right:0; top:0; z-index:60;
+      height:60px; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,0.08);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 12px;
+    }
+    .header-mobile .left{
+      display:flex; align-items:center; gap:8px; min-width:90px;
+    }
+    .header-mobile .title{
+      font-weight:900; color:var(--main); text-align:center; flex:1;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .icon-btn{
+      background:transparent; border:none; cursor:pointer; font-size:20px; color:#2c2c2c;
+      display:flex; align-items:center; justify-content:center;
+    }
+
+    /* Contenu */
+    main{ padding-top:70px; padding-bottom:90px; }
+    .container{ max-width:1100px; margin:0 auto; padding:0 16px; }
+
+    .fiche{
+      background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,0.05);
+      padding:16px; margin-top:14px;
+    }
+
+    /* 2 colonnes (desktop) */
+    .fiche-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:24px;
+      align-items:start;
+    }
+
+    .image-zone{ min-width:0; }
+    .infos-zone{ min-width:0; }
+
+    /* Mobile : 1 colonne */
+    @media (max-width: 767.98px){
+      .fiche-grid{ grid-template-columns: 1fr; }
+    }
+
+    .image-cadre{
+      border-radius:12px; overflow:hidden; background:#f8f8f8;
+      border:1px solid #eee;
+    }
+    .image-cadre img{ width:100%; height:100%; max-height:420px; object-fit:contain; display:block; }
+
+    /* Zoom au survol (demandé) */
+    .afri-zoomable img{
+      transition: transform 0.4s ease;
+      transform-origin: center;
+      will-change: transform;
+    }
+    .afri-zoomable:hover img{
+      transform: scale(1.05);
+    }
+
+    .infos-zone{ flex:1; min-width:260px; display:flex; flex-direction:column; gap:10px; }
+
+    .nom-produit{ font-size:1.35em; color:#2c3e50; font-weight:900; margin:0; }
+    .prix{ font-size:1.6em; color:var(--accent); font-weight:900; margin-top:2px; }
+    .prix-barre{ text-decoration:line-through; color:#aaa; font-size:0.95em; margin-left:10px; font-weight:700; }
+
+    .desc{ margin:6px 0; line-height:1.7; color:#555; background:#fdfdfd; padding:12px 14px; border-left:4px solid var(--main); border-radius:8px; }
+
+    .btn-row{ display:flex; gap:10px; margin-top:8px; flex-wrap:wrap; }
+    .btn-acc{
+      flex:1; min-width:220px;
+      background:var(--accent); color:white; border:none;
+      padding:12px 14px; border-radius:10px; font-weight:900; cursor:pointer;
+    }
+    .btn-acc:hover{ opacity:0.95; }
+    .btn-achat{
+      flex:1; min-width:220px;
+      background:var(--main); color:white; border:none;
+      padding:12px 14px; border-radius:10px; font-weight:900; cursor:pointer;
+    }
+    .btn-achat:hover{ opacity:0.95; }
+    .badge-etoile{
+      background:#fff0e6; border:1px solid #f0c090; color:var(--accent);
+      font-weight:900; border-radius:10px; padding:6px 10px; font-size:0.9em; display:inline-flex; gap:8px; align-items:center;
+    }
+
+    /* Message aucun produit */
+    .empty{
+      background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,0.05);
+      padding:18px; margin-top:14px; text-align:center;
+    }
+    .empty h2{ margin:0 0 10px 0; color:#2c3e50; }
+    .empty p{ margin:0 0 16px 0; color:#666; }
+
+    /* Bouton retour - effet hover */
+    .btn-retour {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: transparent;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .btn-retour:hover {
+      background: rgba(192, 57, 43, 0.08);
+      border: 2px solid rgba(192, 57, 43, 0.3);
+      transform: translateX(-4px);
+      color: #c0392b;
+    }
+
+    .btn-retour i {
+      font-size: 22px;
+      transition: transform 0.3s ease;
+    }
+
+    .btn-retour:hover i {
+      transform: translateX(-3px);
+    }
+
+    /* Footer */
+    footer{
+      position:fixed; left:0; right:0; bottom:72px;
+      background:transparent; pointer-events:none;
+    }
+    .footer-inner{
+      pointer-events:auto;
+      max-width:1100px; margin:0 auto; padding:6px 16px;
+      color:#777; font-size:0.9em; text-align:center;
+    }
+
+    /* Garde-bas: barre nav basse identique à index.html */
+    .nav-basse{
+      position:fixed; left:0; right:0; bottom:0; height:72px;
+      background:#fff; border-top:1px solid #dcdcdc; z-index:60;
+      display:flex; justify-content:space-around; align-items:center;
+    }
+    .nav-basse a{
+      text-decoration:none; color:#444; display:flex; flex-direction:column; align-items:center; font-size:12px;
+    }
+    .nav-basse a.active{ color:var(--main); font-weight:800; }
+  </style>
+</head>
+<body>
+  <header class="header-mobile">
+    <div class="left">
+      <a onclick="history.back()" style="display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:50% !important; border:none; background:transparent; transition:all 0.3s ease; cursor:pointer; text-decoration:none; outline:none;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"><i class="ri-arrow-left-s-line" style="font-size:24px; color:#c0392b; pointer-events:none;"></i></a>
+    </div>
+    <div class="title">Détail produit</div>
+    <div style="min-width:90px; display:flex; justify-content:flex-end;">
+      <a href="panier.html" class="icon-btn" style="text-decoration:none; position:relative; color:inherit;">
+        🛒
+        <span id="nav-badge-panier" style="display:none; position:absolute; top:-6px; right:-10px; background:#e74c3c; color:#fff; font-size:11px; font-weight:900; width:20px; height:20px; border-radius:50%; align-items:center; justify-content:center;"></span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="container" id="app"></div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">© 2026 Afrimarket</div>
+  </footer>
+
+  <nav class="nav-basse">
+    <a href="index.html" class="active">
+      <span style="font-size:20px;">🏠</span>
+      Accueil
+    </a>
+    <a href="#" onclick="scrollTo(0,0); event.preventDefault();">
+      <span style="font-size:20px;">🏷️</span>
+      Catégories
+    </a>
+    <a href="panier.html" id="bottom-panier-link" onclick="event.preventDefault(); window.location.href='panier.html';">
+      <span style="font-size:20px;">🛒</span>
+      Panier
+      <span id="bottom-badge-panier" style="display:none; position:absolute; top:6px; right:18px; background:#e74c3c; color:#fff; font-size:11px; font-weight:900; width:20px; height:20px; border-radius:50%; align-items:center; justify-content:center;">0</span>
+    </a>
+    <a href="profil-vendeur.html">
+      <span style="font-size:20px;">👤</span>
+      Compte
+    </a>
+  </nav>
+
+  <script src="script.js"></script>
+  <script>
+    function getPanierCount(){
+      try{
+        return (window.panier && Array.isArray(panier)) ? panier.reduce((t,i)=>t+i.quantite,0) : 0;
+      }catch{ return 0; }
+    }
+
+    function setBadges(){
+      const c = getPanierCount();
+      const badge1 = document.getElementById('nav-badge-panier');
+      const badge2 = document.getElementById('bottom-badge-panier');
+      if(badge1){
+        if(c>0){ badge1.style.display='flex'; badge1.textContent=String(c); }
+        else badge1.style.display='none';
+      }
+      if(badge2){
+        if(c>0){ badge2.style.display='flex'; badge2.textContent=String(c); }
+        else badge2.style.display='none';
+      }
+    }
+
+    function render(){
+      const app = document.getElementById('app');
+      let produit = null;
+
+      // Le projet utilise déjà localStorage 'produitEnCours'. On garde une compatibilité et on accepte aussi 'produitSelectionne'.
+      const stock1 = localStorage.getItem('produitSelectionne');
+      const stock2 = localStorage.getItem('produitEnCours');
+      const stock = stock1 || stock2;
+
+      if(!stock){
+        app.innerHTML = `
+          <div class="empty">
+            <h2>Aucun produit sélectionné</h2>
+            <p>Choisissez un produit depuis la boutique.</p>
+            <button class="btn-acc" onclick="window.location.href='index.html'">Retour à l'accueil</button>
+          </div>
+        `;
+        return;
+      }
+
+      try{ produit = JSON.parse(stock); }catch{ produit = null; }
+      if(!produit){
+        app.innerHTML = `
+          <div class="empty">
+            <h2>Aucun produit sélectionné</h2>
+            <p>Choisissez un produit depuis la boutique.</p>
+            <button class="btn-acc" onclick="window.location.href='index.html'">Retour à l'accueil</button>
+          </div>
+        `;
+        return;
+      }
+
+      const nom = produit.nom || 'Produit';
+      const prix = Number(produit.prix || 0);
+      const prixBarre = produit.prixBarre ? Number(produit.prixBarre) : null;
+      const desc = produit.description || '';
+      const image = produit.image || (produit.images && produit.images[0]) || '';
+
+      app.innerHTML = `
+        <div class="fiche">
+          <div class="fiche-grid">
+            <div class="image-zone">
+              <div class="image-cadre afri-zoomable">
+                ${image ? `<img src="${image}" alt="${nom}" />` : `<div style="padding:40px; color:#999; text-align:center;">Image indisponible</div>`}
+
+                <button id="btn-favori" onclick="toggleFavori()" style="position:absolute; top:10px; right:10px; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.85); border:0; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.12); cursor:pointer;">
+                  <i id="icone-favori" class="ri-heart-3-line" style="font-size:22px; color:#c0392b;"></i>
+                </button>
+              </div>
+              ${produit.ville ? `<div style="margin-top:10px" class="badge-etoile">📦 Disponible · ${produit.ville}</div>` : ''}
+            </div>
+
+            <div class="infos-zone">
+              <h1 class="nom-produit">${nom}</h1>
+              <div class="prix-zone" style="display:flex;flex-direction:column;gap:6px;">
+                ${prixBarre ? `<div class="prix-ancien" style="font-weight:800;color:#9aa0a6;text-decoration:line-through;">${prixBarre.toLocaleString()} FCFA</div>` : ''}
+                <div class="prix-actuel-ligne" style="display:flex;align-items:baseline;gap:10px;">
+                  <span class="prix">${prix.toLocaleString()} FCFA</span>
+                </div>
+              </div>
+
+              <div id="recap-paiement"></div>
+
+              <div class="desc">${desc || 'Aucune description pour ce produit.'}</div>
+
+              <div class="btn-row">
+                <div style="flex:1; min-width:200px;">
+                  <label for="quantite-choisie" style="display:block; font-weight:900; color:#444; margin-bottom:6px;">Quantité :</label>
+
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <button type="button" id="btn-quantite-minus" onclick="modifierQuantiteDepuisFiche(-1)" style="width:44px;height:44px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:20px;font-weight:900;cursor:pointer;">−</button>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+                      <input id="quantite-choisie" type="number" inputmode="numeric" min="1" value="1" style="width:100%; padding:12px 12px; border:1px solid #ccc; border-radius:10px; font-weight:900; text-align:center;" />
+                      <div id="stock-info" style="font-size:0.92em; color:#b94a00; font-weight:800;">⚠️ Plus que 3 articles en stock !</div>
+                    </div>
+                    <button type="button" id="btn-quantite-plus" onclick="modifierQuantiteDepuisFiche(1)" style="width:44px;height:44px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:20px;font-weight:900;cursor:pointer;">+</button>
+                  </div>
+                </div>
+
+                <button class="btn-acc" id="btn-ajouter-panier" onclick="ajouterDepuisFiche()">Ajouter au panier</button>
+              </div>
+
+              <div style="margin-top:10px; display:flex; gap:10px;">
+                <button class="btn-achat" style="width:100%;" onclick="acheterMaintenantDepuisFiche()">Acheter maintenant</button>
+              </div>
+
+
+              ${produit.vendeur ? `<p style="margin:0; color:#666;">🏪 Vendeur : <strong>${produit.vendeur}</strong></p>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // ==============================
+      // Bloc récap paiement commission + livraison
+      // ==============================
+      const recapEl = document.getElementById('recap-paiement');
+      const { commission, vendeurReçoit, pct } = window.calculerCommission
+        ? window.calculerCommission(produit.prix, produit.categorie)
+        : { commission: 0, vendeurReçoit: produit.prix, pct: 10 };
+
+      const fraisLiv = JSON.parse(localStorage.getItem('afrimarket_frais_livraison')) || {};
+      const ville = (produit.ville || '').toLowerCase();
+      let frais = fraisLiv.autres || 3500;
+      if (ville.includes('brazza')) frais = fraisLiv.brazzaville || 1500;
+      else if (ville.includes('pointe')) frais = fraisLiv.pointenoire || 2000;
+
+      // (Demande: uniquement total/infos sous le prix)
+      recapEl.innerHTML = `
+        <div style="background:#f8f9fa; border-radius:10px; padding:15px; margin-top:15px; border-left:4px solid #0B5345;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span>💰 Prix produit</span>
+            <strong>${Number(produit.prix).toLocaleString()} FCFA</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span>🚚 Frais de livraison</span>
+            <strong>${Number(frais).toLocaleString()} FCFA</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:1.1em; border-top:1px solid #ddd; padding-top:10px;">
+            <span><strong>Total à payer</strong></span>
+            <strong style="color:#c0392b;">${(Number(produit.prix) + Number(frais)).toLocaleString()} FCFA</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    // Fonctions compatibilité : on tente d'utiliser celles de votre script.js, sinon fallback simple.
+    if(!window.ajouterDepuisFiche){
+      window.ajouterDepuisFiche = function(){
+        const s = localStorage.getItem('produitEnCours') || localStorage.getItem('produitSelectionne');
+        const p = s ? JSON.parse(s) : null;
+        if(!p) return alert('Aucun produit sélectionné.');
+        const q = parseInt(document.getElementById('quantite-choisie')?.value || '1', 10);
+        if(window.ajouterAuPanierSpecifique){
+          // ajouter q fois (panier actuel ajoute toujours +1)
+          for(let i=0;i<q;i++) window.ajouterAuPanierSpecifique(p.nom, p.prix, p.image);
+          return;
+        }
+        alert('Fonction ajouterDepuisFiche indisponible dans script.js.');
+      }
+    }
+
+    // Toujours fournir une version Acheter maintenant
+    if(!window.acheterMaintenantDepuisFiche){
+      window.acheterMaintenantDepuisFiche = function(){
+        window.ajouterDepuisFiche && window.ajouterDepuisFiche();
+        window.location.href = 'panier.html';
+      }
+    }
+
+    function toggleFavori() {
+      const icone = document.getElementById('icone-favori');
+      const btn = document.getElementById('btn-favori');
+      const produits = JSON.parse(localStorage.getItem('produitsVendeur')) || [];
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      let favoris = JSON.parse(localStorage.getItem('afrimarket_favoris')) || [];
+
+      if (icone.classList.contains('ri-heart-3-line')) {
+        icone.classList.remove('ri-heart-3-line');
+        icone.classList.add('ri-heart-3-fill');
+        icone.style.color = '#c0392b';
+        btn.style.transform = 'scale(1.2)';
+        setTimeout(() => btn.style.transform = 'scale(1)', 300);
+        if (id && !favoris.includes(id)) favoris.push(id);
+        localStorage.setItem('afrimarket_favoris', JSON.stringify(favoris));
+      } else {
+        icone.classList.remove('ri-heart-3-fill');
+        icone.classList.add('ri-heart-3-line');
+        favoris = favoris.filter(f => f !== id);
+        localStorage.setItem('afrimarket_favoris', JSON.stringify(favoris));
+      }
+    }
+
+    // Vérifier si déjà en favori au chargement
+    window.addEventListener('DOMContentLoaded', function() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const favoris = JSON.parse(localStorage.getItem('afrimarket_favoris')) || [];
+      if (id && favoris.includes(id)) {
+        const icone = document.getElementById('icone-favori');
+        if (icone) {
+          icone.classList.remove('ri-heart-3-line');
+          icone.classList.add('ri-heart-3-fill');
+        }
+      }
+    });
+
+    function getStockMaxDefault(){
+      // Stock max indisponible actuellement dans le localStorage/produit.
+      // On utilise une valeur par défaut (modifiable plus tard) pour limiter la quantité.
+      return 3;
+    }
+
+    function syncQuantiteStockUI(){
+      const inp = document.getElementById('quantite-choisie');
+      const minusBtn = document.getElementById('btn-quantite-minus');
+      const plusBtn = document.getElementById('btn-quantite-plus');
+      const stockInfo = document.getElementById('stock-info');
+      if(!inp) return;
+
+      const maxStock = getStockMaxDefault();
+      const current = Number(inp.value || 1);
+      const q = Math.max(1, Math.min(maxStock, current));
+      inp.value = q;
+
+      if(stockInfo){
+        stockInfo.textContent = `⚠️ Plus que ${maxStock} articles en stock !`;
+      }
+
+      if(minusBtn){ minusBtn.disabled = q <= 1; minusBtn.style.opacity = q<=1 ? 0.5 : 1; }
+      if(plusBtn){ plusBtn.disabled = q >= maxStock; plusBtn.style.opacity = q>=maxStock ? 0.5 : 1; }
+    }
+
+    window.modifierQuantiteDepuisFiche = function(delta){
+      const inp = document.getElementById('quantite-choisie');
+      if(!inp) return;
+      const maxStock = getStockMaxDefault();
+      let q = Number(inp.value || 1);
+      q = Math.max(1, Math.min(maxStock, q + Number(delta || 0)));
+      inp.value = q;
+      syncQuantiteStockUI();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      render();
+      setBadges();
+      setInterval(setBadges, 800);
+      // Après render, on sync la quantité & les boutons.
+      setTimeout(syncQuantiteStockUI, 0);
+    });
+
+  </script>
+</body>
+</html>
+

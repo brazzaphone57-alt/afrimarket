@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes Commandes - Afrimarket</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        .carte-commande {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            overflow: hidden;
+            border-left: 5px solid #E67E22;
+        }
+        .commande-entete {
+            background: #f8f9fa;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .commande-entete strong { color: #2c3e50; }
+        .commande-statut {
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+        }
+        .statut-attente { background: #f1c40f; color: #333; }
+        .statut-livre { background: #27ae60; color: white; }
+        .statut-preparation { background: #3498db; color: white; }
+        .statut-livraison { background: #e67e22; color: white; }
+
+        .commande-corps { padding: 20px; }
+        .commande-corps h4 { margin-top: 0; }
+        .liste-produits-commande { list-style: none; padding-left: 15px; }
+        .liste-produits-commande li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+        .liste-produits-commande img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Mes Commandes</h1>
+        <p>Suivez l'historique de vos achats sur Afrimarket.</p>
+        <nav class="menu-categories">
+            <a href="index.html">🏠 Retour à l'Accueil</a>
+            <a href="panier.html" id="bouton-panier">🛒 Panier (<span id="compteur">0</span>)</a>
+        </nav>
+    </header>
+
+    <main id="contenu-commandes">
+        <!-- Les commandes seront injectées ici -->
+    </main>
+
+    <footer><p>© 2026 Afrimarket. Tous droits réservés.</p></footer>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const commandes = JSON.parse(localStorage.getItem("historiqueCommandes")) || [];
+            const conteneur = document.getElementById("contenu-commandes");
+
+            if (commandes.length === 0) {
+                conteneur.innerHTML = `<p style="text-align:center; color:#888;">Vous n'avez pas encore passé de commande.</p>`;
+                return;
+            }
+
+            // On affiche les plus récentes en premier
+            commandes.reverse().forEach(cmd => {
+                const carte = document.createElement("div");
+                carte.className = "carte-commande";
+
+                let produitsHTML = cmd.produits.map(p => `
+                    <li>
+                        <img src="${p.image}" alt="${p.nom}">
+                        ${p.quantite} x <strong>${p.nom}</strong>
+                    </li>
+                `).join('');
+
+                carte.innerHTML = `
+                    <div class="commande-entete">
+                        <div><strong>Commande du :</strong> ${new Date(cmd.date).toLocaleDateString('fr-FR')}</div>
+                        <div><strong>Total :</strong> ${cmd.total.toLocaleString()} FCFA</div>
+                        <div><span class="commande-statut statut-${cmd.statut.toLowerCase().replace(/ /g, '-')}">${cmd.statut}</span></div>
+                    </div>
+                    <div class="commande-corps">
+                        <h4>Produits commandés :</h4>
+                        <ul class="liste-produits-commande">${produitsHTML}</ul>
+                    </div>
+                `;
+                conteneur.appendChild(carte);
+            });
+        });
+    </script>
+</body>
+</html>

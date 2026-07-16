@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion / Inscription - Afrimarket</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <style>
+        /* Style pour aligner le mot de passe et l'icône d'œil */
+        .zone-mot-de-passe {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .zone-mot-de-passe input {
+            width: 100%;
+            padding-right: 40px; /* Espace pour l'icône */
+        }
+        .icone-oeil {
+            position: absolute;
+            right: 12px;
+            cursor: pointer;
+            font-size: 18px;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Afrimarket</h1>
+        <p>Espace Membres & Vendeurs de l'Afrique Centrale</p>
+        <nav class="menu-categories">
+            <a href="index.html">🏠 Retour à l'Accueil</a>
+        </nav>
+    </header>
+
+    <main class="conteneur-login">
+        
+        <div class="boite-formulaire">
+            <h2>Déjà membre ?</h2>
+            <form>
+                <div class="groupe-champ">
+                    <label for="email-login">Adresse email</label>
+                    <input type="email" id="email-login" placeholder="Ex: monboutique@gmail.com">
+                </div>
+                <div class="groupe-champ">
+                    <label for="pass-login">Mot de passe</label>
+                    <div class="zone-mot-de-passe">
+                        <input type="password" id="pass-login" placeholder="Votre mot de passe">
+                        <span class="icone-oeil" onclick="basculerMotDePasse('pass-login', this)">👁️</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-login" onclick="seConnecter()">Se connecter</button>
+                <p id="erreur-login" style="color:#c0392b; margin-top:10px; display:none;"></p>
+            </form>
+        </div>
+
+        <div class="boite-formulaire">
+            <h2>Nouveau sur Afrimarket ?</h2>
+            <form>
+                <div class="groupe-champ">
+                    <label for="nom">Nom complet / Nom de la boutique</label>
+                    <input type="text" id="nom" placeholder="Ex: Boutique Mama Africa">
+                </div>
+                <div class="groupe-champ">
+                    <label for="telephone">Numéro de téléphone (Pour Mobile Money)</label>
+                    <input type="tel" id="telephone" placeholder="Ex: +237 6XX XX XX XX">
+                </div>
+
+                <div class="groupe-champ">
+                    <label for="email-inscription">Adresse email</label>
+                    <input type="email" id="email-inscription" placeholder="Ex: monboutique@gmail.com">
+                </div>
+
+                <div class="groupe-champ">
+                    <label for="type-compte">Je souhaite me connecter en tant que :</label>
+                    <select id="type-compte" onchange="document.getElementById('groupe-ville').style.display = this.value === 'vendeur' ? 'block' : 'none';">
+                        <option value="client">Acheteur (Pour passer des commandes)</option>
+                        <option value="vendeur">Vendeur (Pour proposer mes produits)</option>
+                    </select>
+                </div>
+
+                <div class="groupe-champ" id="groupe-ville" style="display:none;">
+                    <label for="ville-vendeur">Ville de votre boutique</label>
+                    <select id="ville-vendeur">
+                        <option value="Brazzaville">Brazzaville</option>
+                        <option value="Pointe-Noire">Pointe-Noire</option>
+                        <option value="Dolisie">Dolisie</option>
+                        <option value="Nkayi">Nkayi</option>
+                        <option value="Impfondo">Impfondo</option>
+                        <option value="Ouesso">Ouesso</option>
+                        <option value="Owando">Owando</option>
+                        <option value="Madingou">Madingou</option>
+                    </select>
+                </div>
+
+                <div class="groupe-champ">
+                    <label for="pass-creer">Créer un mot de passe</label>
+                    <div class="zone-mot-de-passe">
+                        <input type="password" id="pass-creer" placeholder="Minimum 6 caractères">
+                        <span class="icone-oeil" onclick="basculerMotDePasse('pass-creer', this)">👁️</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-inscription" onclick="gererInscriptionSupabase()">Créer mon compte</button>
+                <p id="erreur-inscription" style="color:#c0392b; margin-top:10px; display:none;"></p>
+            </form>
+        </div>
+
+    </main>
+
+    <footer>
+        <p>© 2026 Afrimarket. Tous droits réservés.</p>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        function afficherErreur(idElement, message) {
+            const el = document.getElementById(idElement);
+            el.textContent = message;
+            el.style.display = 'block';
+        }
+
+        // ============================================================
+        // INSCRIPTION REELLE (remplace la simulation)
+        // ============================================================
+        async function gererInscriptionSupabase() {
+            const nom = document.getElementById('nom').value.trim();
+            const telephone = document.getElementById('telephone').value.trim();
+            const email = document.getElementById('email-inscription').value.trim();
+            const typeCompte = document.getElementById('type-compte').value;
+            const motDePasse = document.getElementById('pass-creer').value;
+            const ville = document.getElementById('ville-vendeur').value;
+
+            if (!nom || !telephone || !email || !motDePasse) {
+                afficherErreur('erreur-inscription', 'Veuillez remplir tous les champs.');
+                return;
+            }
+            if (motDePasse.length < 6) {
+                afficherErreur('erreur-inscription', 'Le mot de passe doit contenir au moins 6 caractères.');
+                return;
+            }
+
+            // 1. Creer le compte d'authentification
+            const { data, error } = await supabaseClient.auth.signUp({
+                email: email,
+                password: motDePasse
+            });
+
+            if (error) {
+                afficherErreur('erreur-inscription', "Erreur : " + error.message);
+                return;
+            }
+
+            const utilisateur = data.user;
+
+            // 2. Si c'est un vendeur, on cree aussi sa fiche boutique
+            if (typeCompte === 'vendeur' && utilisateur) {
+                const { error: erreurVendeur } = await supabaseClient
+                    .from('vendeurs')
+                    .insert({
+                        id: utilisateur.id,
+                        nom_boutique: nom,
+                        ville: ville,
+                        telephone: telephone
+                    });
+
+                if (erreurVendeur) {
+                    afficherErreur('erreur-inscription', "Compte cree, mais erreur boutique : " + erreurVendeur.message);
+                    return;
+                }
+            }
+
+            localStorage.setItem('nomBoutique', nom);
+            alert('Compte cree avec succes ! Verifiez votre email si une confirmation est demandee, puis connectez-vous.');
+            window.location.href = (typeCompte === 'vendeur') ? 'vendeur.html' : 'index.html';
+        }
+
+        // ============================================================
+        // CONNEXION REELLE (remplace la simulation)
+        // ============================================================
+        async function seConnecter() {
+            const email = document.getElementById('email-login').value.trim();
+            const motDePasse = document.getElementById('pass-login').value;
+
+            if (!email || !motDePasse) {
+                afficherErreur('erreur-login', 'Veuillez remplir tous les champs.');
+                return;
+            }
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: motDePasse
+            });
+
+            if (error) {
+                afficherErreur('erreur-login', "Erreur : " + error.message);
+                return;
+            }
+
+            // On verifie si ce compte a une fiche vendeur pour rediriger correctement
+            const { data: vendeur } = await supabaseClient
+                .from('vendeurs')
+                .select('id')
+                .eq('id', data.user.id)
+                .maybeSingle();
+
+            window.location.href = vendeur ? 'vendeur.html' : 'index.html';
+        }
+    </script>
+</body>
+</html>

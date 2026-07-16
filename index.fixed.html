@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Afrimarket - La marketplace du Congo</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    :root{ --main:#1a5c38; --accent:#e67e22; --bg:#f5f5f5; }
+    body{ background:var(--bg); }
+
+    /* HEADER FIXE */
+    header{ background:#fff; color:inherit; padding:0; box-shadow:none; position:fixed; top:0; left:0; right:0; z-index:50; height:60px; }
+    header .topbar{ height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; gap:10px; }
+    header .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+    header .brand .logo{ font-weight:800; color:#1a5c38; white-space:nowrap; }
+    header .actions{ display:flex; align-items:center; gap:14px; }
+    .icon-btn{ background:transparent; border:none; cursor:pointer; font-size:18px; color:#2c2c2c; }
+
+    /* BARRE RECHERCHE */
+    header .search-row{ position:absolute; left:0; right:0; top:60px; padding:8px 12px 10px; background:transparent; }
+    .barre-recherche-wrapper{ margin:0; display:flex; align-items:center; justify-content:center; position:relative; }
+    .barre-recherche-wrapper input{ width:100%; padding:12px 44px 12px 14px; border-radius:14px; border:0; background:#eef1f3; font-size:14px; outline:none; }
+    .barre-recherche-wrapper .btn-chercher{ display:none; }
+    #btn-reset{ display:none; }
+    .barre-recherche-search-icon{ position:absolute; right:18px; font-size:16px; color:#fff; background:var(--accent); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+
+    /* padding body for fixed header */
+    main{ padding-top:110px; }
+
+    /* BANNIERE CAROUSEL */
+    .slider-container{ margin:0; border-radius:0; box-shadow:none; }
+    .slider-container .slide-content{ max-width:80%; }
+
+    /* TIMER RED */
+    .promo-timer{ position:absolute; top:14px; right:14px; background:rgba(231,76,60,0.95); color:#fff; padding:6px 10px; border-radius:10px; font-size:12px; font-weight:700; z-index:5; }
+    .slider-dots{ bottom:10px; }
+
+    /* CATEGORIES HORIZONTALES */
+    .menu-categories{ margin:14px 0 0; display:flex; gap:18px; overflow-x:auto; padding:0 10px 6px; flex-wrap:nowrap; justify-content:flex-start; scroll-snap-type:x mandatory; }
+    .menu-categories::-webkit-scrollbar{ height:0; }
+    .menu-categories a{ background:transparent; padding:0; border-radius:16px; display:flex; flex-direction:column; align-items:center; gap:6px; color:#333; text-decoration:none; font-size:12px; font-weight:600; min-width:86px; scroll-snap-align:start; }
+    .menu-categories a .cat-circle{ width:54px; height:54px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; }
+    .menu-categories a.active{ color:var(--main); }
+
+    /* VENTES FLASH & RECO -> horizontal scroll */
+    .section-scroll{ background:transparent; }
+    #section-vente-flash .grille-produits,
+    #section-recommandes .grille-produits,
+    #section-vendeurs .grille-produits{ display:flex; gap:12px; overflow-x:auto; padding:0 10px 10px; margin-top:14px; scroll-snap-type:x mandatory; }
+    #section-vente-flash .grille-produits::-webkit-scrollbar,
+    #section-recommandes .grille-produits::-webkit-scrollbar,
+    #section-vendeurs .grille-produits::-webkit-scrollbar{ height:0; }
+
+    /* Cartes slider compact */
+    #section-vente-flash .grille-produits .carte-produit,
+    .section-scroll .grille-produits .carte-produit{ min-width:150px; max-width:170px; flex:0 0 auto; border-radius:10px; }
+
+    /* TITRE SECTION */
+    .titre-h-flex{ display:flex; align-items:center; justify-content:space-between; padding:0 12px; }
+    .titre-h-flex h2{ margin:0; font-size:16px; color:#2c2c2c; }
+    .titre-h-flex .timer-rouge{ color:#e74c3c; font-weight:800; font-size:12px; }
+
+    /* RECO strict 2 colonnes */
+    #section-recommandes .grille-produits{ display:grid !important; grid-template-columns:repeat(2, 1fr) !important; overflow:visible !important; }
+    #section-recommandes .grille-produits .carte-produit{ min-width:auto; border-radius:10px; }
+    #section-recommandes .zone-image-produit{ height:auto; aspect-ratio:1/1; }
+    #section-recommandes .zone-image-produit img{ object-fit:cover; }
+    #section-recommandes .corps-carte{ padding:10px 10px 12px; }
+    #section-recommandes .carte-produit .btn-acheter{ display:none; }
+    #section-recommandes .badge-vendeur{ display:block; }
+
+    .grille-produits{ grid-template-columns:unset; }
+    .badge-reduction{ background:#fff0e6; border-color:#f0c090; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <a href="index.html" title="Retour à l'accueil" style="display:inline-block; line-height:0;">
+        <img src="logo-afrimarket.svg" alt="Afrimarket" height="55" style="transition: transform 0.3s ease; cursor:pointer;" 
+        onmouseover="this.style.transform='scale(1.08)'" 
+        onmouseout="this.style.transform='scale(1)'">
+      </a>
+
+    </div>
+    <div class="actions">
+      <button class="icon-btn" title="Notifications">🔔</button>
+      <a href="panier.html" class="icon-btn" title="Panier" style="text-decoration:none; position:relative;">
+        🛒
+        <span id="nav-badge-panier" style="display:none; position:absolute; top:-6px; right:-10px; background:#e74c3c; color:#fff; font-size:11px; font-weight:800; width:20px; height:20px; border-radius:50%; align-items:center; justify-content:center;"> </span>
+      </a>
+    </div>
+  </div>
+  <div class="search-row">
+    <div class="barre-recherche-wrapper">
+      <input type="text" id="champ-recherche" placeholder="Rechercher un produit, une marque, une ville..." oninput="rechercherEnTempsReel()" onkeydown="if(event.key==='Enter') lancerRecherche()" />
+      <span class="barre-recherche-search-icon">🔍</span>
+      <button id="btn-reset" onclick="reinitialiserRecherche()">✕ Effacer</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="slider-container">
+    <div class="promo-timer" id="promo-timer">Fin de la promo dans : <span id="timer-countdown">00:00:00</span></div>
+    <div class="slider">
+      <div class="slide active">
+        <img src="https://images.unsplash.com/photo-1526170375885-4a8ecf77b99f?w=1200&h=400&fit=crop" alt="Offre spéciale Électronique" />
+        <div class="slide-content">
+          <h2>Vente Flash Électronique</h2>
+          <p>Jusqu'à -40% sur une sélection de produits high-tech !</p>
+          <a href="#" class="btn-slider" onclick="filtrerCategorie('Électronique')">Découvrir</a>
+        </div>
+      </div>
+      <div class="slide">
+        <img src="https://images.unsplash.com/photo-1593030518489-7582d06b16c1?w=1200&h=400&fit=crop" alt="Mode Africaine" />
+        <div class="slide-content">
+          <h2>Nouvelle Collection Pagne</h2>
+          <p>Les plus beaux tissus Wax sont sur Afrimarket.</p>
+          <a href="#" class="btn-slider" onclick="filtrerCategorie('Mode')">Voir la collection</a>
+        </div>
+      </div>
+    </div>
+    <button class="slider-btn prev">‹</button>
+    <button class="slider-btn next">›</button>
+    <div class="slider-dots"></div>
+  </div>
+
+  <nav class="menu-categories" aria-label="Catégories">
+    <a href="index.html" class="active" onclick="event.preventDefault();">
+      <span class="cat-circle" style="background:#1a5c38;">🏠</span>
+      Accueil
+    </a>
+    <a href="#" onclick="filtrerCategorie('Électronique');">
+      <span class="cat-circle" style="background:#0f9d58;">📱</span>
+      Électronique
+    </a>
+    <a href="#" onclick="filtrerCategorie('Mode');">
+      <span class="cat-circle" style="background:#8e44ad;">👗</span>
+      Mode
+    </a>
+    <a href="#" onclick="filtrerCategorie('Beauté');">
+      <span class="cat-circle" style="background:#e67e22;">💄</span>
+      Beauté
+    </a>
+    <a href="#" onclick="filtrerCategorie('Enfants');">
+      <span class="cat-circle" style="background:#2980b9;">🧸</span>
+      Enfants
+    </a>
+    <a href="#" onclick="filtrerCategorie('Épicerie');">
+      <span class="cat-circle" style="background:#c0392b;">🌽</span>
+      Épicerie
+    </a>
+    <a href="#" onclick="filtrerCategorie('Chaussures');">
+      <span class="cat-circle" style="background:#27ae60;">👟</span>
+      Chaussures
+    </a>
+  </nav>
+
+  <section id="section-vente-flash" class="section-scroll">
+    <div class="titre-h-flex">
+      <h2 style="color:#e74c3c;">⚡ Ventes Flash</h2>
+      <div class="timer-rouge" id="flash-timer">⏳ 00:00:00</div>
+    </div>
+    <div class="grille-produits" id="grille-vente-flash"></div>
+  </section>
+
+  <div id="msg-aucun-resultat">
+    <span>🔍</span>
+    Aucun produit trouvé pour "<strong id="mot-cherche"></strong>".<br />
+    <small>Essayez un autre mot-clé ou <a href="#" onclick="reinitialiserRecherche()">voir tous les produits</a>.</small>
+  </div>
+
+  <div id="bloc-resultats">
+    <p id="compteur-resultats"></p>
+  </div>
+
+  <section id="section-recommandes" class="section-scroll">
+    <div class="titre-h-flex">
+      <h2>Produits recommandés</h2>
+      <div class="timer-rouge" style="opacity:.0">.</div>
+    </div>
+    <div class="grille-produits" id="grille-base"></div>
+  </section>
+
+  <section id="section-vendeurs" class="section-scroll">
+    <div class="titre-h-flex">
+      <h2>🛍️ Nouveaux produits des vendeurs</h2>
+      <div class="timer-rouge" style="opacity:.0">.</div>
+    </div>
+    <div class="grille-produits" id="grille-produits-vendeurs">
+      <p id="msg-aucun-vendeur">Aucun produit vendeur pour l'instant. <a href="vendeur.html">Devenez vendeur !</a></p>
+    </div>
+  </section>
+</main>
+
+<nav class="nav-basse" style="position:fixed; left:0; right:0; bottom:0; height:72px; background:#fff; border-top:1px solid #dcdcdc; z-index:60; display:flex; justify-content:space-around; align-items:center;">
+  <a href="index.html" style="text-decoration:none; color:var(--main); font-weight:800; display:flex; flex-direction:column; align-items:center; font-size:12px;">
+    <span style="font-size:20px;">🏠</span>
+    Accueil
+  </a>
+  <a href="#" style="text-decoration:none; color:#444; display:flex; flex-direction:column; align-items:center; font-size:12px;" onclick="scrollTo(0,0);">
+    <span style="font-size:20px;">🏷️</span>
+    Catégories
+  </a>
+  <a href="panier.html" style="text-decoration:none; color:#444; display:flex; flex-direction:column; align-items:center; font-size:12px; position:relative;" id="bottom-panier-link">
+    <span style="font-size:20px;">🛒</span>
+    Panier
+    <span id="bottom-badge-panier" style="display:none; position:absolute; top:6px; right:18px; background:#e74c3c; color:#fff; font-size:11px; font-weight:900; width:20px; height:20px; border-radius:50%; align-items:center; justify-content:center;">0</span>
+  </a>
+  <a href="profil-vendeur.html" style="text-decoration:none; color:#444; display:flex; flex-direction:column; align-items:center; font-size:12px;">
+    <span style="font-size:20px;">👤</span>
+    Compte
+  </a>
+</nav>
+
+<script src="script.js"></script>
+
+<script>
+  (function(){
+    function pad(n){ return String(n).padStart(2,'0'); }
+    const el = document.getElementById('timer-countdown');
+    const flash = document.getElementById('flash-timer');
+    let t = 3*60*60 + 12*60 + 5;
+    setInterval(()=>{
+      if(!el) return;
+      const h = Math.floor(t/3600);
+      const m = Math.floor((t%3600)/60);
+      const s = t%60;
+      const txt = `${pad(h)}:${pad(m)}:${pad(s)}`;
+      el.textContent = txt;
+      if(flash) flash.textContent = `⏳ ${txt}`;
+      t = Math.max(0, t-1);
+    },1000);
+  })();
+
+  // Badge panier (bas de page)
+  (function(){
+    function update(){
+      const badge = document.getElementById('bottom-badge-panier');
+      if(!badge) return;
+      const compteur = document.getElementById('compteur');
+      const totalArticles = panier && Array.isArray(panier) ? panier.reduce((t,i)=>t+i.quantite,0) : 0;
+      const n = compteur ? parseInt(compteur.innerText || '0',10) : totalArticles;
+      if(n>0){ badge.style.display='flex'; badge.textContent = String(n); }
+      else { badge.style.display='none'; }
+    }
+    setInterval(update, 800);
+    update();
+  })();
+</script>
+
+<script>
+  function getInfosNoteProduit(nomProduit) {
+    const cleAvis = "avis_" + nomProduit;
+    const avis = JSON.parse(localStorage.getItem(cleAvis)) || [];
+    if (avis.length === 0) return { moyenne: 0, nbAvis: 0, etoilesHTML: '<span style="color:#ccc;">Aucun avis</span>' };
+
+    const totalNotes = avis.reduce((sum, a) => sum + a.note, 0);
+    const moyenne = totalNotes / avis.length;
+    const etoilesArrondies = Math.round(moyenne);
+
+    let etoilesHTML = '';
+    for (let i = 1; i <= 5; i++) etoilesHTML += i <= etoilesArrondies ? '★' : '☆';
+    return { moyenne, nbAvis: avis.length, etoilesHTML };
+  }
+
+  const produitsBase = [
+    { nom: "Smartphone Android Pro", prix: 85000, prixBarre: 120000, image: "images/telephone.jpg", ville: "Brazzaville", categorie: "Électronique", description: "Un smartphone ultra-rapide avec une batterie longue durée de 6000 mAh, idéal pour rester connecté partout au Congo.", vendeur: "Électro-Brazza", enVenteFlash:true, badge:"🇨🇬 Électro-Brazza" },
+    { nom: "Sac en Pagne Chic", prix: 15000, prixBarre: 25000, image: "https://images.unsplash.com/photo-1544816155-12df9643f363?w=400&auto=format&fit=crop&q=60", ville: "Pointe-Noire", categorie: "Mode", description: "Magnifique sac rigide conçu en véritable tissu Wax par nos maîtres artisans couturiers de Pointe-Noire.", vendeur: "Sape de Ponton", badge:"🇨🇬 Sape de Ponton" },
+    { nom: "Baskets de Sport Confort", prix: 25000, prixBarre: 35000, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop&q=60", ville: "Brazzaville", categorie: "Mode", description: "Idéales pour la marche urbaine et le sport. Légères, stylées et ultra-résistantes pour le quotidien.", vendeur: "Mode de Brazza", badge:"🇨🇬 Mode de Brazza" }
+  ];
+
+  function chargerProduitsDeBase(){
+    const grille = document.getElementById('grille-base');
+    grille.innerHTML = '';
+    produitsBase.forEach(p=>{
+      const reduction = Math.round((1 - p.prix / p.prixBarre) * 100);
+      const infosNote = getInfosNoteProduit(p.nom);
+      const carte = document.createElement('div');
+      carte.className = 'carte-produit';
+      carte.onclick = () => { ouvrirProduit(p); window.location.href='produit.html'; };
+      carte.innerHTML = `
+        <span class="badge-vendeur">🏪 ${p.vendeur}</span>
+        <div class="zone-image-produit"><img src="${p.image}" alt="${p.nom}"></div>
+        <div class="corps-carte">
+          <div class="etoiles">${infosNote.etoilesHTML} <span>(${infosNote.nbAvis})</span></div>
+          <h3>${p.nom}</h3>
+          <div class="zone-prix">
+            <span class="prix-actuel">${p.prix.toLocaleString()} FCFA</span>
+            <span class="prix-barre">${p.prixBarre.toLocaleString()} FCFA</span>
+          </div>
+          <button class="btn-acheter" onclick="event.stopPropagation(); ajouterAuPanierSpecifique('${p.nom}', ${p.prix}, '${p.image}')">🛒 Ajouter au panier</button>
+          <p class="ventes-locales" style="display:none;">📦 Disponible · ${p.ville}</p>
+        </div>`;
+      grille.appendChild(carte);
+    });
+  }
+
+  function chargerProduitsVendeurs(){
+    let grille = document.getElementById('grille-produits-vendeurs');
+    let produitsVendeur = localStorage.getItem('produitsVendeur') ? JSON.parse(localStorage.getItem('produitsVendeur')) : [];
+    if(produitsVendeur.length===0){
+      grille.innerHTML = '<p id="msg-aucun-vendeur">Aucun produit vendeur pour l\'instant. <a href="vendeur.html">Devenez vendeur !</a></p>';
+      return;
+    }
+    grille.innerHTML='';
+    produitsVendeur.forEach(p=>{
+      const infosNote = getInfosNoteProduit(p.nom);
+      const carte = document.createElement('div');
+      carte.className='carte-produit';
+      carte.onclick = () => { ouvrirProduit(p); window.location.href='produit.html'; };
+      carte.innerHTML = `
+        <span class="badge-vendeur" onclick="event.stopPropagation(); ouvrirProfilVendeur('${p.vendeur}', '${p.ville}')">🏪 ${p.vendeur}</span>
+        <div class="zone-image-produit"><img src="${p.image}" alt="${p.nom}" style="width:100%; height:100%; object-fit:cover;"></div>
+        <div class="corps-carte">
+          <div class="etoiles">${infosNote.etoilesHTML} <span>(${infosNote.nbAvis})</span></div>
+          <h3>${p.nom}</h3>
+          <div class="zone-prix"><span class="prix-actuel">${p.prix.toLocaleString()} FCFA</span></div>
+          <p class="ventes-locales">📦 Disponible · ${p.ville}</p>
+          <button class="btn-acheter" onclick="event.stopPropagation(); ajouterAuPanierSpecifique('${p.nom}', ${p.prix}, '${p.image}')">🛒 Ajouter au panier</button>
+        </div>`;
+      grille.appendChild(carte);
+    });
+  }
+
+  function chargerVentesFlash(){
+    const section = document.getElementById('section-vente-flash');
+    const grille = document.getElementById('grille-vente-flash');
+    const produitsVendeur = JSON.parse(localStorage.getItem('produitsVendeur')) || [];
+    const tousLesProduits = [...produitsBase, ...produitsVendeur];
+    const produitsEnPromo = tousLesProduits.filter(p=>p.enVenteFlash===true);
+
+    if(produitsEnPromo.length===0){ section.style.display='none'; return; }
+    section.style.display='block';
+    grille.innerHTML='';
+
+    produitsEnPromo.forEach(p=>{
+      const carte = document.createElement('div');
+      carte.className='carte-produit';
+      carte.onclick = () => { ouvrirProduit(p); window.location.href='produit.html'; };
+
+      let prixHTML = `<span class="prix-actuel">${p.prix.toLocaleString()} FCFA</span>`;
+      if(p.prixBarre){
+        const reduction = Math.round((1 - p.prix / p.prixBarre) * 100);
+        prixHTML += `<span class="prix-barre">${p.prixBarre.toLocaleString()} FCFA</span><span class="badge-reduction">-${reduction}%</span>`;
+      }
+
+      carte.innerHTML = `
+        <span class="badge-afrique" style="background-color:#e74c3c;">⚡ Vente Flash</span>
+        <div class="zone-image-produit"><img src="${p.image}" alt="${p.nom}"></div>
+        <div class="corps-carte">
+          <h3>${p.nom}</h3>
+          <div class="zone-prix">${prixHTML}</div>
+          <p class="ventes-locales">📦 Disponible · ${p.ville}</p>
+          <button class="btn-acheter" onclick="event.stopPropagation(); ajouterAuPanierSpecifique('${p.nom}', ${p.prix}, '${p.image}')">🛒 Ajouter au panier</button>
+        </div>`;
+      grille.appendChild(carte);
+    });
+  }
+
+  function rechercherEnTempsReel(){
+    const mot = document.getElementById('champ-recherche').value.trim();
+    if(mot.length===0){ reinitialiserRecherche(); return; }
+    if(mot.length>=2) lancerRecherche();
+  }
+
+  function lancerRecherche(){
+    const mot = document.getElementById('champ-recherche').value.trim().toLowerCase();
+    if(mot===''){ reinitialiserRecherche(); return; }
+
+    document.getElementById('btn-reset').style.display='inline-block';
+    document.getElementById('mot-cherche').innerText = mot;
+
+    const produitsVendeur = localStorage.getItem('produitsVendeur') ? JSON.parse(localStorage.getItem('produitsVendeur')) : [];
+
+    const tousLesProduits = [
+      ...produitsBase,
+      ...produitsVendeur.map(p=>({
+        nom:p.nom, prix:p.prix, image:p.image, ville:p.ville,
+        categorie:p.categorie||'', description:p.description||''
+      }))
+    ];
+
+    const resultats = tousLesProduits.filter(p=>
+      p.nom.toLowerCase().includes(mot) ||
+      p.ville.toLowerCase().includes(mot) ||
+      (p.categorie && p.categorie.toLowerCase().includes(mot)) ||
+      (p.description && p.description.toLowerCase().includes(mot))
+    );
+
+    afficherResultats(resultats, mot);
+  }
+
+  function afficherResultats(resultats, mot){
+    document.getElementById('section-recommandes').style.display='none';
+    document.getElementById('section-vendeurs').style.display='none';
+    document.getElementById('msg-aucun-resultat').style.display='none';
+
+    const blocResultats = document.getElementById('bloc-resultats');
+    blocResultats.style.display='block';
+
+    if(resultats.length===0){
+      blocResultats.style.display='none';
+      document.getElementById('msg-aucun-resultat').style.display='block';
+      return;
+    }
+
+    document.getElementById('compteur-resultats').innerHTML = `
+      🔍 <strong>${resultats.length} produit${resultats.length>1?'s':''}</strong> trouvé${resultats.length>1?'s':''} pour "<strong>${mot}</strong>"
+      <span style="margin-left:20px; font-size:0.9em;">Trier par :
+        <button class="btn-tri" onclick="trierResultats('prix-asc')">Prix croissant</button>
+        <button class="btn-tri" onclick="trierResultats('prix-desc')">Prix décroissant</button>
+      </span>`;
+
+    window.resultatsCourants = resultats;
+
+    const grilleExistante = document.getElementById('grille-resultats');
+    if(grilleExistante) grilleExistante.remove();
+
+    const grille = document.createElement('div');
+    grille.className = 'grille-produits';
+    grille.id = 'grille-resultats';
+    blocResultats.appendChild(grille);
+
+    afficherCartesResultats(resultats, mot);
+  }
+
+  function afficherCartesResultats(resultats, mot){
+    const grille = document.getElementById('grille-resultats');
+    resultats.forEach(p=>{
+      const nomSurligne = p.nom.replace(new RegExp(`(${mot})`,'gi'), '<span class="highlight">$1</span>');
+      const carte = document.createElement('div');
+      carte.className='carte-produit';
+      carte.onclick = () => { ouvrirProduit(p); window.location.href='produit.html'; };
+      carte.innerHTML = `
+        <div class="zone-image-produit"><img src="${p.image}" alt="${p.nom}" style="width:100%; height:220px; object-fit:cover;"></div>
+        <div class="corps-carte">
+          <div class="etoiles">⭐ <span>📍 ${p.ville}</span></div>
+          <h3>${nomSurligne}</h3>
+          <div class="zone-prix"><span class="prix-actuel">${p.prix.toLocaleString()} FCFA</span></div>
+          <p class="ventes-locales">📦 Disponible · ${p.ville}</p>
+          <button class="btn-acheter" onclick="event.stopPropagation(); ajouterAuPanierSpecifique('${p.nom}', ${p.prix}, '${p.image}')">🛒 Ajouter au panier</button>
+        </div>`;
+      grille.appendChild(carte);
+    });
+  }
+
+  function trierResultats(methode){
+    if(!window.resultatsCourants) return;
+    const resultatsTries = [...window.resultatsCourants];
+    if(methode==='prix-asc') resultatsTries.sort((a,b)=>a.prix-b.prix);
+    if(methode==='prix-desc') resultatsTries.sort((a,b)=>b.prix-a.prix);
+    const grille = document.getElementById('grille-resultats');
+    grille.innerHTML='';
+    const mot = document.getElementById('champ-recherche').value.trim().toLowerCase();
+    afficherCartesResultats(resultatsTries, mot);
+  }
+
+  function filtrerCategorie(categorie){
+    document.getElementById('champ-recherche').value = categorie;
+    lancerRecherche();
+  }
+
+  function reinitialiserRecherche(){
+    document.getElementById('champ-recherche').value='';
+    document.getElementById('btn-reset').style.display='none';
+    document.getElementById('bloc-resultats').style.display='none';
+    document.getElementById('msg-aucun-resultat').style.display='none';
+    document.getElementById('section-recommandes').style.display='block';
+    document.getElementById('section-vendeurs').style.display='block';
+    chargerVentesFlash();
+    const grilleResultats = document.getElementById('grille-resultats');
+    if(grilleResultats) grilleResultats.remove();
+  }
+
+  chargerProduitsDeBase();
+  chargerProduitsVendeurs();
+  chargerVentesFlash();
+
+  // Slider
+  const slides = document.querySelectorAll('.slider .slide');
+  const nextBtn = document.querySelector('.slider-btn.next');
+  const prevBtn = document.querySelector('.slider-btn.prev');
+  const dotsContainer = document.querySelector('.slider-dots');
+  let currentSlide = 0;
+  let slideInterval;
+
+  function goToSlide(n){
+    slides[currentSlide].classList.remove('active');
+    currentSlide = (n + slides.length) % slides.length;
+    slides[currentSlide].classList.add('active');
+  }
+  function nextSlide(){ goToSlide(currentSlide+1); }
+  function prevSlide(){ goToSlide(currentSlide-1); }
+
+  let dots = [];
+  slides.forEach((_, i)=>{
+    const dot = document.createElement('button');
+    dot.classList.add('dot');
+    if(i===0) dot.classList.add('active');
+    dot.addEventListener('click', ()=>{ goToSlide(i); resetInterval(); });
+    dotsContainer.appendChild(dot);
+    dots.push(dot);
+  });
+
+  nextBtn.addEventListener('click', ()=>{ nextSlide(); resetInterval(); });
+  prevBtn.addEventListener('click', ()=>{ prevSlide(); resetInterval(); });
+
+  function startInterval(){ slideInterval = setInterval(nextSlide, 5000); }
+  function resetInterval(){ clearInterval(slideInterval); startInterval(); }
+  startInterval();
+</script>
+</body>
+</html>
+

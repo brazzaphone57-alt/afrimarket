@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Article - Afrimarket</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    .afri-container{max-width:800px;margin:0 auto;padding:110px 16px 40px;}
+    .afri-article-card{background:#fff;border:1px solid #eef1f3;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.05);padding:18px 16px;}
+    .afri-article-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+    .afri-article-title{margin:8px 0 6px;font-size:1.6em;color:#1f2d3d;line-height:1.25;}
+    .afri-article-meta{color:#6b7a89;font-size:0.95em;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+    .afri-article-image{width:100%;height:auto;max-height:420px;object-fit:cover;border-radius:10px;border:1px solid #eef1f3;display:block;margin:10px 0 14px;}
+    .afri-article-content{color:#3f4c59;line-height:1.75;font-size:1.02em;white-space:pre-wrap;}
+    .afri-article-back{display:inline-block;margin-bottom:10px;color:#0B5345;font-weight:800;text-decoration:none;}
+    .afri-similar-title{margin:22px 0 12px;font-size:1.1em;color:#1f2d3d;}
+    .afri-similar-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    @media (max-width:700px){.afri-similar-grid{grid-template-columns:repeat(1,1fr);}}
+    .afri-similar-item{border:1px solid #eef1f3;border-radius:10px;padding:10px;background:#fff;cursor:pointer;}
+    .afri-similar-item img{width:100%;height:140px;object-fit:cover;border-radius:8px;border:1px solid #eef1f3;display:block;}
+    .afri-similar-item h4{margin:8px 0 0;font-size:0.98em;color:#2c3e50;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+
+    .badge-afrique.badge-blog{ background:#2980b9; }
+    .badge-afrique.badge-flash{ background:#e74c3c; }
+    .badge-afrique.badge-promos{ background:#e67e22; }
+    .badge-afrique.badge-recommandes{ background:#27ae60; }
+  </style>
+</head>
+<body>
+  <div class="afri-container">
+    <a class="afri-article-back" href="index.html">← Retour</a>
+
+
+    <div id="article-root" class="afri-article-card" style="display:none;">
+      <div class="afri-article-top">
+        <span id="article-badge" class="badge-afrique badge-blog">Blog</span>
+        <span id="article-views" style="font-weight:800;color:#7b8b9c;font-size:0.95em;"><i class="ri-eye-line" style="vertical-align:middle;"></i> 0 vues</span>
+
+      </div>
+
+      <h1 id="article-title" class="afri-article-title"></h1>
+      <div id="article-meta" class="afri-article-meta"></div>
+      <img id="article-image" class="afri-article-image" alt="" />
+      <div id="article-content" class="afri-article-content"></div>
+
+      <div class="afri-similar-title">Articles similaires</div>
+      <div id="similar-grid" class="afri-similar-grid"></div>
+    </div>
+
+    <div id="not-found" class="afri-article-card" style="display:block; text-align:center;">
+      <h2 style="margin:8px 0 8px; color:#1f2d3d;">Article indisponible</h2>
+      <p style="margin:0 0 14px; color:#6b7a89;">Redirection vers la page d’accueil...</p>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      function getParam(name){
+        const url = new URL(window.location.href);
+        return url.searchParams.get(name);
+      }
+
+      function parseArticles(){
+        try{
+          const raw = localStorage.getItem('afrimarket_articles');
+          const arr = raw ? JSON.parse(raw) : [];
+          return Array.isArray(arr) ? arr : [];
+        }catch(e){
+          return [];
+        }
+      }
+
+      function normalizeStatus(a){
+        return (a && (a.statut || a.status) ? String(a.statut || a.status) : '').trim();
+      }
+
+      function formatDate(d){
+        const dt = d ? new Date(d) : null;
+        if(!dt || isNaN(dt.getTime())) return '';
+        return dt.toLocaleDateString('fr-FR');
+      }
+
+      function escapeHtml(str){
+        // conversion robuste sans map dynamique
+        const s = String(str ?? '');
+        return s
+          .replace(/&/g,'&amp;')
+          .replace(/</g,'<')
+          .replace(/>/g,'>')
+          .replace(/\"/g,'"')
+          .replace(/'/g,'&#039;');
+      }
+
+      const idRaw = getParam('id');
+      const id = idRaw != null ? String(idRaw) : null;
+      const articles = parseArticles();
+
+      if(!id){
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const found = articles.find(a => a && String(a.id) === id) || null;
+      if(!found){
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const st = normalizeStatus(found);
+      const published = (st === 'Publié' || st === 'PUBLISHED' || st === 'Publié ');
+      if(!published){
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // compteur vues (total par id)
+      const vuesKey = 'afrimarket_articles_vues';
+      let vuesMap = {};
+      try{ vuesMap = JSON.parse(localStorage.getItem(vuesKey)) || {}; }catch(e){ vuesMap = {}; }
+      if(typeof vuesMap !== 'object' || vuesMap === null) vuesMap = {};
+      const currentVues = Number(vuesMap[id] || 0);
+      vuesMap[id] = currentVues + 1;
+      localStorage.setItem(vuesKey, JSON.stringify(vuesMap));
+
+      const root = document.getElementById('article-root');
+      const notFound = document.getElementById('not-found');
+      if(root) root.style.display = 'block';
+      if(notFound) notFound.style.display = 'none';
+
+      const badge = document.getElementById('article-badge');
+      const title = document.getElementById('article-title');
+      const meta = document.getElementById('article-meta');
+      const img = document.getElementById('article-image');
+      const content = document.getElementById('article-content');
+      const viewsEl = document.getElementById('article-views');
+
+      const categorie = found.categorie || found.category || 'Blog';
+      const titre = found.titre || found.title || '';
+      const auteur = found.auteur || found.author || '';
+      const date = found.datePublication || found.date || found.publishedAt || '';
+      const image = found.imageBase64 || found.image || '';
+      const texte = found.content || found.texte || found.contenu || '';
+
+      if(badge){
+        badge.innerHTML = '<i class="ri-pencil-line"></i> ' + categorie;
+
+        const c = String(categorie).toLowerCase();
+        if(c.includes('flash')) badge.className = 'badge-afrique badge-flash';
+        else if(c.includes('promo')) badge.className = 'badge-afrique badge-promos';
+        else if(c.includes('recommand')) badge.className = 'badge-afrique badge-recommandes';
+        else badge.className = 'badge-afrique badge-blog';
+      }
+
+      if(title) title.textContent = titre;
+      if(meta){
+        const parts = [];
+        if(auteur) parts.push('<i class="ri-user-3-line"></i> ' + auteur);
+
+        if(date) parts.push('<i class="ri-calendar-line"></i> ' + formatDate(date));
+
+        meta.innerHTML = parts.join('<span class="dotsep">•</span>');
+      }
+      if(img){ img.src = image; img.alt = titre; }
+      if(content){ content.textContent = texte; }
+      if(viewsEl){ viewsEl.innerHTML = '<i class="ri-eye-line" style="vertical-align:middle;"></i> ' + (currentVues + 1) + ' vues'; }
+
+
+      // similaires : même catégorie
+      const grid = document.getElementById('similar-grid');
+      const sameCat = articles
+        .filter(a => a && String(a.id) !== id && (a.categorie || a.category) === categorie)
+        .slice();
+      sameCat.sort((a,b) => new Date(b.datePublication||b.date||'').getTime() - new Date(a.datePublication||a.date||'').getTime());
+      const top = sameCat.slice(0,3);
+
+      if(grid){
+        if(top.length === 0){
+          grid.innerHTML = '<div style="grid-column:1/-1;color:#6b7a89;">Aucun article similaire pour le moment.</div>';
+        } else {
+          grid.innerHTML = '';
+          top.forEach(a => {
+            const item = document.createElement('div');
+            item.className = 'afri-similar-item';
+            const aImg = a.imageBase64 || a.image || '';
+            const aTitre = a.titre || a.title || '';
+            item.innerHTML = `
+              <img src="${escapeHtml(aImg)}" alt="${escapeHtml(aTitre)}" />
+              <h4>${escapeHtml(aTitre)}</h4>
+            `;
+            item.onclick = () => {
+              window.location.href = 'article.html?id=' + encodeURIComponent(String(a.id));
+            };
+            grid.appendChild(item);
+          });
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
+
