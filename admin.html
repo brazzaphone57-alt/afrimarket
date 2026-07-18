@@ -832,13 +832,33 @@
         }
     }
 
-    function chargerDonneesAdmin() {
-        const produits = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
+    // Caches en mémoire (rechargés à chaque appel de chargerDonneesAdmin)
+    let vendeursAdminCache = [];
+    let produitsAdminCache = [];
+
+    async function chargerDonneesAdmin() {
+        // --- Récupération Supabase : vendeurs + produits (avec infos vendeur jointes) ---
+        const { data: vendeursData, error: erreurVendeurs } = await supabaseClient
+            .from('vendeurs')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (erreurVendeurs) {
+            console.error('[Admin] Erreur chargement vendeurs:', erreurVendeurs);
+        }
+        vendeursAdminCache = erreurVendeurs ? [] : (vendeursData || []);
+
+        const { data: produitsData, error: erreurProduits } = await supabaseClient
+            .from('produits')
+            .select('*, vendeurs(nom_boutique, ville, verifie)')
+            .order('created_at', { ascending: false });
+        if (erreurProduits) {
+            console.error('[Admin] Erreur chargement produits:', erreurProduits);
+        }
+        produitsAdminCache = erreurProduits ? [] : (produitsData || []);
 
         // Stats
-        const vendeursUniques = [...new Set(produits.map(p => p.vendeur).filter(Boolean))];
-        document.getElementById("stat-vendeurs").innerText = vendeursUniques.length;
-        document.getElementById("stat-produits").innerText = produits.length;
+        document.getElementById("stat-vendeurs").innerText = vendeursAdminCache.length;
+        document.getElementById("stat-produits").innerText = produitsAdminCache.length;
 
         let totalAvis = 0;
         for (let i = 0; i < localStorage.length; i++) {
@@ -862,26 +882,25 @@
         chargerVisites();
 
         // Vendeurs
-
         const listeVendeurs = document.getElementById("liste-vendeurs");
         if (listeVendeurs) {
             listeVendeurs.innerHTML = "";
-            if (vendeursUniques.length === 0) {
+            if (vendeursAdminCache.length === 0) {
                 listeVendeurs.innerHTML = "<li>Aucun vendeur inscrit.</li>";
             } else {
-                vendeursUniques.forEach(nomVendeur => {
-                    const nbProduits = produits.filter(p => p.vendeur === nomVendeur).length;
-                    const verifie = !!(produits.find(p => p.vendeur === nomVendeur) || {}).vendeurVerifie;
+                vendeursAdminCache.forEach(v => {
+                    const nbProduits = produitsAdminCache.filter(p => p.vendeur_id === v.id).length;
+                    const verifie = !!v.verifie;
 
                     const li = document.createElement("li");
                     li.innerHTML = `
                         <div class="info">
-                            <strong>${nomVendeur}${verifie ? ' ✅' : ''}</strong>
-                            <span>${nbProduits} produit(s) en ligne</span>
+                            <strong>${v.nom_boutique}${verifie ? ' ✅' : ''}</strong>
+                            <span>${nbProduits} produit(s) en ligne · ${v.ville || ''}</span>
                         </div>
                         <div class="actions">
-                            <button class="btn-approve" onclick="verifierVendeur('${nomVendeur}')" ${verifie ? 'disabled' : ''}>Vérifier</button>
-                            <button class="btn-danger" onclick="supprimerVendeur('${nomVendeur}')">Suspendre</button>
+                            <button class="btn-approve" onclick="verifierVendeur('${v.id}')" ${verifie ? 'disabled' : ''}>Vérifier</button>
+                            <button class="btn-danger" onclick="supprimerVendeur('${v.id}', '${(v.nom_boutique || '').replace(/'/g, "\\'")}')">Suspendre</button>
                         </div>
                     `;
                     listeVendeurs.appendChild(li);
@@ -889,36 +908,40 @@
             }
         }
 
-        // Produits
+        // Produits (vendeurs + officiels ensemble)
         const listeProduits = document.getElementById("liste-produits");
         if (listeProduits) {
             listeProduits.innerHTML = "";
 
-            if (produits.length === 0) {
+            if (produitsAdminCache.length === 0) {
                 listeProduits.innerHTML = "<li>Aucun produit sur la plateforme.</li>";
             } else {
-                produits.forEach((produit, index) => {
-                    const verifieVendeur = !!produit.vendeurVerifie;
-                    const flashActif = !!produit.enVenteFlash && (!produit.flashUntil || Date.now() < Number(produit.flashUntil));
+                produitsAdminCache.forEach((produit) => {
+                    const nomVendeurAffiche = produit.vendeur_id
+                        ? (produit.vendeurs ? produit.vendeurs.nom_boutique : 'Vendeur')
+                        : 'Afrimarket Officiel';
+                    const verifieVendeur = !!(produit.vendeurs && produit.vendeurs.verifie);
+                    const flashActif = !!produit.en_vente_flash && (!produit.flash_until || Date.now() < new Date(produit.flash_until).getTime());
+                    const inactif = produit.actif === false;
 
                     const li = document.createElement("li");
                     li.innerHTML = `
                         <div class="info">
-                            <strong>${produit.nom}${verifieVendeur ? ' ✅' : ''}</strong>
-                            <span>Vendu par : ${produit.vendeur || ''} - ${Number(produit.prix || 0).toLocaleString()} FCFA</span>
-                            <span>${flashActif ? '⚡ En vente flash' : ''}</span>
+                            <strong>${produit.nom}${verifieVendeur ? ' ✅' : ''}${inactif ? ' ⛔' : ''}</strong>
+                            <span>Vendu par : ${nomVendeurAffiche} - ${Number(produit.prix || 0).toLocaleString()} FCFA</span>
+                            <span>${flashActif ? '⚡ En vente flash' : ''}${inactif ? ' · Désactivé' : ''}</span>
                         </div>
                         <div class="actions">
-                            <button class="btn-approve" onclick="ouvrirFlash(${index})">Mettre en Vente Flash</button>
-                            <button class="btn-blue" onclick="recommanderProduit(${index})">Mettre en Recommandé</button>
-                            <button class="btn-danger" onclick="supprimerProduit(${index})">Supprimer</button>
+                            <button class="btn-approve" onclick="ouvrirFlash('${produit.id}')">Mettre en Vente Flash</button>
+                            <button class="btn-blue" onclick="recommanderProduit('${produit.id}')">Mettre en Recommandé</button>
+                            <button class="btn-danger" onclick="supprimerProduit('${produit.id}')">Supprimer</button>
                         </div>
                     `;
                     listeProduits.appendChild(li);
 
                     // formulaire flash
                     const form = document.createElement('div');
-                    form.id = `flash-form-${index}`;
+                    form.id = `flash-form-${produit.id}`;
                     form.style.display = 'none';
                     form.style.width = '100%';
                     form.style.marginTop = '10px';
@@ -930,16 +953,16 @@
                         <div class="admin-form" style="margin-top:0;">
                             <div class="field">
                                 <label>Prix réduit (FCFA)</label>
-                                <input type="number" id="flash-prix-${index}" min="0" placeholder="Ex: 15000">
+                                <input type="number" id="flash-prix-${produit.id}" min="0" placeholder="Ex: 15000">
                             </div>
                             <div class="field">
                                 <label>Durée (heures)</label>
-                                <input type="number" id="flash-heures-${index}" min="1" placeholder="Ex: 6">
+                                <input type="number" id="flash-heures-${produit.id}" min="1" placeholder="Ex: 6">
                             </div>
                         </div>
                         <div style="display:flex; gap:10px; margin-top:12px;">
-                            <button class="btn-approve" style="flex:1; padding:12px; border-radius:6px; border:none; cursor:pointer; font-weight:900;" onclick="validerFlash(${index})">Valider</button>
-                            <button class="btn-grey" style="flex:1; padding:12px; border-radius:6px; border:none; cursor:pointer; font-weight:900;" onclick="fermerFlash(${index})">Annuler</button>
+                            <button class="btn-approve" style="flex:1; padding:12px; border-radius:6px; border:none; cursor:pointer; font-weight:900;" onclick="validerFlash('${produit.id}')">Valider</button>
+                            <button class="btn-grey" style="flex:1; padding:12px; border-radius:6px; border:none; cursor:pointer; font-weight:900;" onclick="fermerFlash('${produit.id}')">Annuler</button>
                         </div>
                     `;
                     // Ajout juste après la ligne
@@ -1044,88 +1067,114 @@
     // ================================================================
     // Actions admin : Produits (Flash/Recommandé)
     // ================================================================
-    function ouvrirFlash(index) {
-        const el = document.getElementById(`flash-form-${index}`);
+    function ouvrirFlash(id) {
+        const el = document.getElementById(`flash-form-${id}`);
         if (el) el.style.display = 'block';
     }
 
-    function fermerFlash(index) {
-        const el = document.getElementById(`flash-form-${index}`);
+    function fermerFlash(id) {
+        const el = document.getElementById(`flash-form-${id}`);
         if (el) el.style.display = 'none';
     }
 
-    function validerFlash(index) {
-        const produits = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
-        const p = produits[index];
-        if (!p) return;
-
-        const prixFlash = Number(document.getElementById(`flash-prix-${index}`).value);
-        const heures = Number(document.getElementById(`flash-heures-${index}`).value);
+    async function validerFlash(id) {
+        const prixFlash = Number(document.getElementById(`flash-prix-${id}`).value);
+        const heures = Number(document.getElementById(`flash-heures-${id}`).value);
 
         if (!prixFlash || prixFlash <= 0) return alert('Prix réduit invalide.');
         if (!heures || heures <= 0) return alert('Durée invalide.');
 
-        // prix barré
-        if (!p.prixBarre) p.prixBarre = p.prix;
+        const produit = produitsAdminCache.find(p => p.id === id);
+        if (!produit) return;
 
-        p.enVenteFlash = true;
-        p.flashUntil = String(Date.now() + heures * 60 * 60 * 1000);
-        p.prix = prixFlash;
+        const prixBarre = produit.prix_barre || produit.prix;
+        const flashUntil = new Date(Date.now() + heures * 60 * 60 * 1000).toISOString();
 
-        produits[index] = p;
-        localStorage.setItem("produitsVendeur", JSON.stringify(produits));
+        const { error } = await supabaseClient
+            .from('produits')
+            .update({
+                en_vente_flash: true,
+                prix_barre: prixBarre,
+                prix: prixFlash,
+                flash_until: flashUntil
+            })
+            .eq('id', id);
+
+        if (error) {
+            alert("❌ Erreur lors de la mise en vente flash : " + error.message);
+            return;
+        }
+
         alert("✅ Produit mis en vente flash.");
         chargerDonneesAdmin();
     }
 
-    function recommanderProduit(index) {
-        const produits = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
-        const p = produits[index];
-        if (!p) return;
-        p.recommande = true;
-        produits[index] = p;
-        localStorage.setItem("produitsVendeur", JSON.stringify(produits));
+    async function recommanderProduit(id) {
+        const { error } = await supabaseClient
+            .from('produits')
+            .update({ recommande: true })
+            .eq('id', id);
+
+        if (error) {
+            alert("❌ Erreur : " + error.message);
+            return;
+        }
+
         alert("✅ Produit recommandé.");
         chargerDonneesAdmin();
     }
 
-    function supprimerProduit(index) {
-        const produits = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
-        const nomProduit = produits[index]?.nom;
-        if (!nomProduit) return;
-        if (confirm(`Voulez-vous vraiment supprimer le produit "${nomProduit}" ?`)) {
-            produits.splice(index, 1);
-            localStorage.setItem("produitsVendeur", JSON.stringify(produits));
-            alert("Produit supprimé.");
-            window.location.reload();
+    async function supprimerProduit(id) {
+        const produit = produitsAdminCache.find(p => p.id === id);
+        if (!produit) return;
+        if (!confirm(`Voulez-vous vraiment supprimer le produit "${produit.nom}" ?`)) return;
+
+        const { error } = await supabaseClient
+            .from('produits')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            alert("❌ Erreur lors de la suppression : " + error.message);
+            return;
         }
+
+        alert("Produit supprimé.");
+        chargerDonneesAdmin();
     }
 
     // ================================================================
     // Actions admin : Vendeurs
     // ================================================================
-    function supprimerVendeur(nomVendeur) {
-        if (confirm(`Voulez-vous vraiment suspendre le vendeur "${nomVendeur}" et retirer tous ses produits ?`)) {
-            let produits = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
-            produits = produits.filter(p => p.vendeur !== nomVendeur);
-            localStorage.setItem("produitsVendeur", JSON.stringify(produits));
-            alert("Vendeur suspendu et produits retirés.");
-            window.location.reload();
+    async function supprimerVendeur(vendeurId, nomVendeur) {
+        if (!confirm(`Voulez-vous vraiment suspendre le vendeur "${nomVendeur}" et retirer tous ses produits ?`)) return;
+
+        const { error } = await supabaseClient
+            .from('produits')
+            .update({ actif: false })
+            .eq('vendeur_id', vendeurId);
+
+        if (error) {
+            alert("❌ Erreur lors de la suspension : " + error.message);
+            return;
         }
+
+        alert("Vendeur suspendu : tous ses produits ont été désactivés.");
+        chargerDonneesAdmin();
     }
 
-    function verifierVendeur(nomVendeur) {
-        let produits = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
-        let nb = 0;
-        produits = produits.map(p => {
-            if (p.vendeur === nomVendeur) {
-                nb++;
-                return { ...p, vendeurVerifie: true };
-            }
-            return p;
-        });
-        localStorage.setItem("produitsVendeur", JSON.stringify(produits));
-        alert(nb ? `✅ Vendeur vérifié (${nomVendeur}).` : "Aucun produit trouvé.");
+    async function verifierVendeur(vendeurId) {
+        const { error } = await supabaseClient
+            .from('vendeurs')
+            .update({ verifie: true })
+            .eq('id', vendeurId);
+
+        if (error) {
+            alert("❌ Erreur : " + error.message);
+            return;
+        }
+
+        alert("✅ Vendeur vérifié.");
         chargerDonneesAdmin();
     }
 
