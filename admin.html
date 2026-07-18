@@ -6,6 +6,8 @@
     <title>Admin - Afrimarket</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
 
     <style>
         body { background-color: #ecf0f1; }
@@ -276,6 +278,7 @@
             <a href="#communication"><i class="ri-megaphone-line"></i> Communication</a>
             <a href="#bannières-flash"><i class="ri-image-line"></i> Bannières Flash</a>
             <a href="#commissions">💰 Commissions</a>
+            <a href="#visites"><i class="ri-eye-line"></i> Visites</a>
 
         </nav>
     </div>
@@ -310,7 +313,7 @@
             </div>
         </div>
 
-        <div class="mini-note">Mot de passe admin par défaut : <strong>afrimarket2026admin</strong> (modifiable uniquement par l’admin connecté).</div>
+        <div class="mini-note">Mot de passe admin par défaut : <strong>afrimarket2026admin</strong> (modifiable uniquement par l'admin connecté).</div>
     </section>
 
     <section id="admin-area" style="display:none;">
@@ -324,6 +327,8 @@
             <!-- Cartes manquantes -->
             <div class="carte-stat"><h4>Nombre total de commandes</h4><p id="stat-commandes">0</p></div>
             <div class="carte-stat"><h4>Chiffre d'affaires total (FCFA)</h4><p id="stat-ca">0</p></div>
+            <div class="carte-stat"><h4>👁️ Visites (total)</h4><p id="stat-visites-total">0</p></div>
+            <div class="carte-stat"><h4>👁️ Visites (aujourd'hui)</h4><p id="stat-visites-jour">0</p></div>
         </div>
 
         <!-- GESTION DES PRODUITS -->
@@ -349,7 +354,7 @@
             <h3><i class="ri-flag-2-line"></i> Signalements clients</h3>
 
             <ul class="admin-list" id="liste-signalements"></ul>
-            <div class="mini-note" id="msg-aucun-signalement" style="display:none;">Aucun signalement pour l’instant.</div>
+            <div class="mini-note" id="msg-aucun-signalement" style="display:none;">Aucun signalement pour l'instant.</div>
         </div>
 
         <!-- SECTION COMMUNICATION -->
@@ -373,7 +378,7 @@
         <div class="admin-section" id="boutique-officielle" style="margin-top:18px;">
             <h3><i class="ri-store-3-line"></i> Boutique Officielle Afrimarket</h3>
 
-            <div class="mini-note">Ajout de produits officiels (images stockées en base64 dans localStorage).</div>
+            <div class="mini-note">Ajout de produits officiels (enregistrés directement dans Supabase, visibles par tout le monde).</div>
 
             <div class="admin-form" id="form-ajout-produit-officiel" style="margin-top:14px;">
                 <div class="field">
@@ -381,8 +386,8 @@
                     <input id="produit-nom-officiel" type="text" placeholder="Ex: Smartphone Android Pro" />
                 </div>
                 <div class="field">
-                    <label for="produit-vendeur-officiel">Vendeur</label>
-                    <input id="produit-vendeur-officiel" type="text" placeholder="Ex: Électro-Brazza" />
+                    <label for="produit-vendeur-officiel">Vendeur (affichage)</label>
+                    <input id="produit-vendeur-officiel" type="text" placeholder="Ex: Afrimarket Officiel" />
                 </div>
 
                 <div class="field">
@@ -443,11 +448,6 @@
                 <ul class="admin-list" id="liste-produits-officiels" style="margin:0;"></ul>
                 <div class="mini-note" id="msg-aucun-produit-officiel" style="display:none;">Aucun produit officiel ajouté.</div>
             </div>
-        </div>
-
-        <!-- SECTION BANNIÈRES FLASH -->
-        <div class="admin-section" id="bannières-flash">
-
         </div>
 
         <!-- SECTION COMMISSIONS -->
@@ -555,13 +555,26 @@
   <div class="mini-note" id="msg-aucune-commission" style="display:none;">Aucune commission enregistrée.</div>
 </div>
 
+        <!-- SECTION VISITES -->
+        <div class="admin-section" id="visites">
+            <h3><i class="ri-eye-line"></i> Suivi des Visites</h3>
+            <div class="mini-note">Chaque chargement de la page d'accueil est enregistré ici, avec la date et l'heure.</div>
+
+            <div class="admin-subtitle" style="margin-top:20px;">📅 Visites des 7 derniers jours</div>
+            <ul class="admin-list" id="liste-visites-par-jour"></ul>
+
+            <div class="admin-subtitle" style="margin-top:20px;">🕒 50 dernières visites</div>
+            <ul class="admin-list" id="liste-dernieres-visites"></ul>
+            <div class="mini-note" id="msg-aucune-visite" style="display:none;">Aucune visite enregistrée pour l'instant.</div>
+        </div>
+
         <!-- SECTION BANNIÈRES FLASH -->
         <div class="admin-section" id="bannières-flash">
 
 
             <h3><i class="ri-image-line"></i> Gestion des Bannières Flash</h3>
 
-            <div class="mini-note">Ajoutez jusqu’à 5 bannières. Elles remplaceront les bannières par défaut dans le carrousel de <strong>index.html</strong>.</div>
+            <div class="mini-note">Ajoutez jusqu'à 5 bannières. Elles remplaceront les bannières par défaut dans le carrousel de <strong>index.html</strong>.</div>
 
             <div class="admin-form">
                 <div class="field">
@@ -760,7 +773,7 @@
 
     window.deconnexionAdmin = logout;
 
-    // init boutique officielle (upload image base64)
+    // init boutique officielle (Supabase)
     window.initBoutiqueOfficielle && window.initBoutiqueOfficielle();
 })();
 
@@ -768,6 +781,57 @@
 
     // CHARGEMENT DONNÉES ADMIN
     // ================================================================
+    async function chargerVisites() {
+        const { data: visites, error } = await supabaseClient
+            .from('visites')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+        if (error || !visites) {
+            document.getElementById('stat-visites-total').innerText = '?';
+            document.getElementById('stat-visites-jour').innerText = '?';
+            return;
+        }
+
+        document.getElementById('stat-visites-total').innerText = visites.length >= 500 ? '500+' : visites.length;
+
+        const aujourdHui = new Date();
+        aujourdHui.setHours(0, 0, 0, 0);
+        const visitesAujourdHui = visites.filter(v => new Date(v.created_at) >= aujourdHui);
+        document.getElementById('stat-visites-jour').innerText = visitesAujourdHui.length;
+
+        // Regroupement par jour (7 derniers jours)
+        const compteurParJour = {};
+        visites.forEach(v => {
+            const jour = new Date(v.created_at).toLocaleDateString('fr-FR');
+            compteurParJour[jour] = (compteurParJour[jour] || 0) + 1;
+        });
+        const septDerniersJours = Object.keys(compteurParJour).slice(0, 7);
+        const listeParJourEl = document.getElementById('liste-visites-par-jour');
+        if (septDerniersJours.length === 0) {
+            listeParJourEl.innerHTML = '<li class="mini-note">Aucune donnée pour l\'instant.</li>';
+        } else {
+            listeParJourEl.innerHTML = septDerniersJours.map(jour =>
+                `<li>📅 <strong>${jour}</strong> — ${compteurParJour[jour]} visite(s)</li>`
+            ).join('');
+        }
+
+        // 50 dernières visites (detail)
+        const listeDernieresEl = document.getElementById('liste-dernieres-visites');
+        const msgAucuneVisite = document.getElementById('msg-aucune-visite');
+        if (visites.length === 0) {
+            listeDernieresEl.innerHTML = '';
+            msgAucuneVisite.style.display = 'block';
+        } else {
+            msgAucuneVisite.style.display = 'none';
+            listeDernieresEl.innerHTML = visites.slice(0, 50).map(v => {
+                const date = new Date(v.created_at);
+                return `<li>🕒 ${date.toLocaleDateString('fr-FR')} à ${date.toLocaleTimeString('fr-FR')} — page : <strong>${v.page}</strong></li>`;
+            }).join('');
+        }
+    }
+
     function chargerDonneesAdmin() {
         const produits = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
 
@@ -794,6 +858,8 @@
         if (typeof chargerParametresCommissions === 'function') {
             chargerParametresCommissions();
         }
+
+        chargerVisites();
 
         // Vendeurs
 
@@ -1097,30 +1163,25 @@
     }
 
     // ================================================================
-    // BOUTIQUE OFFICIELLE : upload image => base64 + preview + minis
-    // Stockage : localStorage['produitsOfficiels']
+    // BOUTIQUE OFFICIELLE : upload image vers Supabase Storage
+    // + insertion dans la table Supabase "produits" (vendeur_id = null)
     // ================================================================
-    let produitImageBase64Officiel = null;
-    let produitImageFileNameOfficiel = null;
+    let produitFichierOfficiel = null;
 
-    function showProduitPreviewOfficiel(base64, fileName) {
-        produitImageBase64Officiel = base64;
-        produitImageFileNameOfficiel = fileName;
-
+    function showProduitPreviewOfficiel(url, fileName) {
         const preview = document.getElementById('preview-image-officiel');
         const img = document.getElementById('img-preview-officiel');
         const fileNameEl = document.getElementById('file-name-officiel');
         if (!preview || !img || !fileNameEl) return;
 
         img.style.display = 'block';
-        img.src = base64;
+        img.src = url;
         fileNameEl.textContent = `Image : ${fileName}`;
         preview.style.display = 'block';
     }
 
     function resetProduitPreviewOfficiel() {
-        produitImageBase64Officiel = null;
-        produitImageFileNameOfficiel = null;
+        produitFichierOfficiel = null;
 
         const preview = document.getElementById('preview-image-officiel');
         const img = document.getElementById('img-preview-officiel');
@@ -1131,15 +1192,6 @@
         if (img) { img.src = ''; img.style.display = 'none'; }
         if (fileNameEl) fileNameEl.textContent = '';
         if (input) input.value = '';
-    }
-
-    function lireImageEnBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result));
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
     }
 
     async function handleProduitImageOfficielChange(evt) {
@@ -1161,46 +1213,73 @@
             return;
         }
 
-        const base64 = await lireImageEnBase64(file);
-        showProduitPreviewOfficiel(base64, file.name);
+        produitFichierOfficiel = file;
+        showProduitPreviewOfficiel(URL.createObjectURL(file), file.name);
     }
 
-    function ajouterProduitOfficiel() {
+    async function ajouterProduitOfficiel() {
         const nom = (document.getElementById('produit-nom-officiel')?.value || '').trim();
         const vendeur = (document.getElementById('produit-vendeur-officiel')?.value || '').trim();
         const prix = Number(document.getElementById('produit-prix-officiel')?.value || '0');
-        const ville = (document.getElementById('produit-ville-officiel')?.value || '').trim();
         const categorie = (document.getElementById('produit-categorie-officiel')?.value || '').trim();
         const prixBarreRaw = (document.getElementById('produit-prixbarre-officiel')?.value || '').trim();
         const prixBarre = prixBarreRaw === '' ? null : Number(prixBarreRaw);
         const description = (document.getElementById('produit-description-officiel')?.value || '').trim();
 
         if (!nom) return alert('Veuillez saisir un nom de produit.');
-        if (!vendeur) return alert('Veuillez saisir un vendeur.');
         if (!prix || prix <= 0) return alert('Veuillez saisir un prix valide.');
-        if (!ville) return alert('Veuillez saisir une ville.');
         if (!categorie) return alert('Veuillez saisir une catégorie.');
-        if (!produitImageBase64Officiel) return alert('Veuillez sélectionner une image.');
+        if (!produitFichierOfficiel) return alert('Veuillez sélectionner une image.');
 
-        const produitsOfficiels = JSON.parse(localStorage.getItem('produitsOfficiels')) || [];
+        const btnAdd = document.getElementById('btn-ajouter-produit-officiel');
+        if (btnAdd) { btnAdd.disabled = true; btnAdd.textContent = 'Ajout en cours...'; }
 
-        produitsOfficiels.push({
-            nom,
-            prix,
-            prixBarre,
-            imageBase64: produitImageBase64Officiel,
-            ville,
-            categorie,
-            description,
-            vendeur,
-            enVenteFlash: false,
-            recommande: false
-        });
+        // 1. Upload de l'image vers Supabase Storage
+        const extension = produitFichierOfficiel.name.split('.').pop();
+        const cheminFichier = `officiel/${Date.now()}.${extension}`;
 
-        localStorage.setItem('produitsOfficiels', JSON.stringify(produitsOfficiels));
+        const { error: erreurUpload } = await supabaseClient
+            .storage
+            .from('produits-images')
+            .upload(cheminFichier, produitFichierOfficiel);
+
+        if (erreurUpload) {
+            alert("❌ Erreur lors de l'envoi de l'image : " + erreurUpload.message);
+            if (btnAdd) { btnAdd.disabled = false; btnAdd.textContent = 'Ajouter le produit'; }
+            return;
+        }
+
+        // 2. Récupérer l'URL publique de l'image
+        const { data: urlPublique } = supabaseClient
+            .storage
+            .from('produits-images')
+            .getPublicUrl(cheminFichier);
+
+        // 3. Insertion du produit officiel dans Supabase (vendeur_id = null)
+        const { error } = await supabaseClient
+            .from('produits')
+            .insert({
+                vendeur_id: null,
+                nom: nom,
+                prix: prix,
+                prix_barre: prixBarre,
+                image_url: urlPublique.publicUrl,
+                categorie: categorie,
+                description: description,
+                stock: 10,
+                actif: true
+            });
+
+        if (btnAdd) { btnAdd.disabled = false; btnAdd.textContent = 'Ajouter le produit'; }
+
+        if (error) {
+            alert("❌ Erreur lors de l'ajout du produit : " + error.message);
+            return;
+        }
 
         alert('✅ Produit officiel ajouté.');
-        // reset champs
+
+        // Reset champs
         document.getElementById('produit-nom-officiel').value = '';
         document.getElementById('produit-vendeur-officiel').value = '';
         document.getElementById('produit-prix-officiel').value = '';
@@ -1213,34 +1292,42 @@
         chargerProduitsOfficielsMiniatures();
     }
 
-    function supprimerProduitOfficiel(index) {
-        const produitsOfficiels = JSON.parse(localStorage.getItem('produitsOfficiels')) || [];
-        const p = produitsOfficiels[index];
-        if (!p) return;
+    async function supprimerProduitOfficiel(id) {
+        if (!confirm('Supprimer ce produit officiel ?')) return;
 
-        if (!confirm(`Supprimer le produit officiel "${p.nom}" ?`)) return;
+        const { error } = await supabaseClient
+            .from('produits')
+            .delete()
+            .eq('id', id);
 
-        produitsOfficiels.splice(index, 1);
-        localStorage.setItem('produitsOfficiels', JSON.stringify(produitsOfficiels));
+        if (error) {
+            alert('❌ Erreur lors de la suppression : ' + error.message);
+            return;
+        }
 
         chargerProduitsOfficielsMiniatures();
     }
 
-    function chargerProduitsOfficielsMiniatures() {
+    async function chargerProduitsOfficielsMiniatures() {
         const ul = document.getElementById('liste-produits-officiels');
         const msg = document.getElementById('msg-aucun-produit-officiel');
         if (!ul) return;
 
-        const produitsOfficiels = JSON.parse(localStorage.getItem('produitsOfficiels')) || [];
+        const { data: produitsOfficiels, error } = await supabaseClient
+            .from('produits')
+            .select('*')
+            .is('vendeur_id', null)
+            .order('created_at', { ascending: false });
+
         ul.innerHTML = '';
 
-        if (!produitsOfficiels.length) {
+        if (error || !produitsOfficiels || !produitsOfficiels.length) {
             if (msg) msg.style.display = 'block';
             return;
         }
         if (msg) msg.style.display = 'none';
 
-        produitsOfficiels.forEach((p, idx) => {
+        produitsOfficiels.forEach((p) => {
             const li = document.createElement('li');
             li.style.display = 'flex';
             li.style.justifyContent = 'space-between';
@@ -1249,14 +1336,14 @@
             li.style.borderBottom = '1px solid #f5f5f5';
             li.innerHTML = `
                 <div style="display:flex; gap:12px; align-items:center;">
-                    <img src="${p.imageBase64}" alt="${p.nom}" style="width:50px; height:50px; object-fit:cover; border-radius:8px; border:1px solid #eee;" />
+                    <img src="${p.image_url}" alt="${p.nom}" style="width:50px; height:50px; object-fit:cover; border-radius:8px; border:1px solid #eee;" />
                     <div>
                         <strong style="display:block;">${p.nom}</strong>
-                        <span style="display:block; color:#888; font-size:0.8em;">${Number(p.prix || 0).toLocaleString()} FCFA • ${p.vendeur || ''}</span>
+                        <span style="display:block; color:#888; font-size:0.8em;">${Number(p.prix || 0).toLocaleString()} FCFA</span>
                     </div>
                 </div>
                 <div class="actions">
-                    <button class="btn-danger" style="padding:6px 10px; border-radius:6px;" type="button" onclick="supprimerProduitOfficiel(${idx})">Supprimer</button>
+                    <button class="btn-danger" style="padding:6px 10px; border-radius:6px;" type="button" onclick="supprimerProduitOfficiel('${p.id}')">Supprimer</button>
                 </div>
             `;
             ul.appendChild(li);
@@ -1452,5 +1539,3 @@
 </script>
 </body>
 </html>
-
-

@@ -6,6 +6,8 @@
     <title>Profil Vendeur - Afrimarket</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
 
     <style>
         .header-vendeur {
@@ -83,52 +85,78 @@
 
     <script src="script.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            // 1. Récupérer les infos du vendeur depuis le localStorage
+        document.addEventListener("DOMContentLoaded", async function() {
+            // 1. Récupérer les infos du vendeur en cours depuis le localStorage
+            //    (juste le nom/ville "de passage" entre index.html et cette page)
             const vendeurEnCours = JSON.parse(localStorage.getItem("vendeurEnCours"));
-            const tousLesProduitsVendeur = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
 
-            if (vendeurEnCours) {
-                // 2. Mettre à jour l'en-tête de la page
-                document.title = `Boutique ${vendeurEnCours.nom} - Afrimarket`;
-                document.getElementById("nom-boutique").textContent = `<i class="ri-store-3-line"></i> ${vendeurEnCours.nom}`;
-
-                document.getElementById("ville-boutique").textContent = `Basé à ${vendeurEnCours.ville}`;
-
-                document.getElementById("breadcrumb-vendeur").textContent = `/ ${vendeurEnCours.nom}`;
-
-                // 3. Filtrer pour n'avoir que les produits de CE vendeur
-                const produitsDuVendeur = tousLesProduitsVendeur.filter(p => p.vendeur === vendeurEnCours.nom);
-
-                // 4. Afficher les produits
-                const grille = document.getElementById("grille-produits-vendeur");
-                grille.innerHTML = ""; // Vider la grille
-
-                if (produitsDuVendeur.length === 0) {
-                    grille.innerHTML = `<p style="text-align:center; color:#888; grid-column: 1 / -1;">Ce vendeur n'a aucun produit en ligne pour le moment.</p>`;
-                    return;
-                }
-
-                produitsDuVendeur.forEach(p => {
-                    const carte = document.createElement("div");
-                    carte.className = "carte-produit";
-                    carte.onclick = () => {
-                        ouvrirProduit(p);
-                        window.location.href = 'produit.html';
-                    };
-                    carte.innerHTML = `
-                        <div class="zone-image-produit"><img src="${p.image}" alt="${p.nom}"></div>
-                        <div class="corps-carte">
-                            <h3>${p.nom}</h3>
-                            <div class="zone-prix"><span class="prix-actuel">${p.prix.toLocaleString()} FCFA</span></div>
-                            <p class="ventes-locales"><i class="ri-box-3-line"></i> Disponible</p>
-
-                            <button class="btn-acheter" onclick="event.stopPropagation(); ajouterAuPanierSpecifique('${p.nom}', ${p.prix}, '${p.image}')"><i class="ri-shopping-cart-2-line"></i> Ajouter au panier</button>
-
-                        </div>`;
-                    grille.appendChild(carte);
-                });
+            if (!vendeurEnCours) {
+                document.getElementById("nom-boutique").textContent = "Vendeur introuvable";
+                return;
             }
+
+            // 2. Mettre à jour l'en-tête de la page
+            document.title = `Boutique ${vendeurEnCours.nom} - Afrimarket`;
+            document.getElementById("nom-boutique").innerHTML = `<i class="ri-store-3-line"></i> ${vendeurEnCours.nom}`;
+            document.getElementById("ville-boutique").textContent = `Basé à ${vendeurEnCours.ville}`;
+            document.getElementById("breadcrumb-vendeur").textContent = `/ ${vendeurEnCours.nom}`;
+
+            const grille = document.getElementById("grille-produits-vendeur");
+
+            // 3. Retrouver le vendeur dans Supabase à partir de son nom de boutique
+            const { data: vendeurData, error: erreurVendeur } = await supabaseClient
+                .from('vendeurs')
+                .select('id')
+                .eq('nom_boutique', vendeurEnCours.nom)
+                .maybeSingle();
+
+            if (erreurVendeur || !vendeurData) {
+                grille.innerHTML = `<p style="text-align:center; color:#888; grid-column: 1 / -1;">Ce vendeur n'a aucun produit en ligne pour le moment.</p>`;
+                return;
+            }
+
+            // 4. Récupérer tous les produits actifs de ce vendeur
+            const { data: produits, error: erreurProduits } = await supabaseClient
+                .from('produits')
+                .select('*')
+                .eq('vendeur_id', vendeurData.id)
+                .eq('actif', true)
+                .order('created_at', { ascending: false });
+
+            if (erreurProduits || !produits || produits.length === 0) {
+                grille.innerHTML = `<p style="text-align:center; color:#888; grid-column: 1 / -1;">Ce vendeur n'a aucun produit en ligne pour le moment.</p>`;
+                return;
+            }
+
+            // 5. Afficher les produits
+            grille.innerHTML = "";
+
+            produits.forEach(p => {
+                const produitAffichage = {
+                    nom: p.nom,
+                    prix: p.prix,
+                    image: p.image_url,
+                    vendeur: vendeurEnCours.nom
+                };
+
+                const carte = document.createElement("div");
+                carte.className = "carte-produit";
+                carte.onclick = () => {
+                    ouvrirProduit(produitAffichage);
+                    window.location.href = 'produit.html';
+                };
+                carte.innerHTML = `
+                    <div class="zone-image-produit"><img src="${p.image_url}" alt="${p.nom}"></div>
+                    <div class="corps-carte">
+                        <h3>${p.nom}</h3>
+                        <div class="zone-prix"><span class="prix-actuel">${Number(p.prix).toLocaleString()} FCFA</span></div>
+                        <p class="ventes-locales"><i class="ri-box-3-line"></i> Disponible</p>
+
+                        <button class="btn-acheter" onclick="event.stopPropagation(); ajouterAuPanierSpecifique('${p.nom}', ${p.prix}, '${p.image_url}')"><i class="ri-shopping-cart-2-line"></i> Ajouter au panier</button>
+
+                    </div>`;
+                grille.appendChild(carte);
+            });
         });
     </script>
 </body>

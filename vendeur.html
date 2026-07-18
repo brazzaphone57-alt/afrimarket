@@ -206,6 +206,7 @@
             document.getElementById("nom-boutique-header").innerText = `🏪 ${nomVendeur}`;
 
             chargerProfilVendeur();
+            await chargerCommandesVendeurDepuisSupabase();
             filtrerCommandes('En attente', document.querySelector('.tab-link.active'));
             calculerStatistiques();
             calculerPaiements();
@@ -325,7 +326,8 @@
                     image_url: urlPublique.publicUrl,
                     categorie: categorie,
                     description: description,
-                    stock: 10
+                    stock: 10,
+                    actif: true
                 });
 
             if (error) {
@@ -356,8 +358,44 @@
         }
 
         // ================================================================
-        // GESTION DES COMMANDES (AVEC ONGLETS)
+        // GESTION DES COMMANDES (AVEC ONGLETS) - connecte a Supabase
         // ================================================================
+        let commandesVendeurCache = [];
+
+        async function chargerCommandesVendeurDepuisSupabase() {
+            const { data, error } = await supabaseClient
+                .from('commande_produits')
+                .select('*, commandes(*)')
+                .eq('vendeur_id', vendeurId);
+
+            if (error || !data) {
+                commandesVendeurCache = [];
+                return;
+            }
+
+            const commandesParId = {};
+            data.forEach(ligne => {
+                const cmd = ligne.commandes;
+                if (!cmd) return;
+                if (!commandesParId[cmd.id]) {
+                    commandesParId[cmd.id] = {
+                        id: cmd.id,
+                        date: cmd.created_at,
+                        statut: cmd.statut,
+                        livraison: { nom: cmd.nom_client, tel: cmd.telephone_client, ville: cmd.ville, adresse: cmd.adresse },
+                        produits: [],
+                        total: 0,
+                        montantVendeur: 0
+                    };
+                }
+                commandesParId[cmd.id].produits.push({ nom: ligne.nom_produit, quantite: ligne.quantite, prix: ligne.prix_unitaire });
+                commandesParId[cmd.id].total += Number(ligne.prix_unitaire) * Number(ligne.quantite);
+                commandesParId[cmd.id].montantVendeur += Number(ligne.montant_vendeur || (ligne.prix_unitaire * ligne.quantite));
+            });
+
+            commandesVendeurCache = Object.values(commandesParId);
+        }
+
         function filtrerCommandes(statut, elementActif) {
             document.querySelectorAll('.tab-link').forEach(tab => tab.classList.remove('active'));
             if (elementActif) elementActif.classList.add('active');
@@ -373,24 +411,9 @@
         }
 
         function chargerCommandesVendeur(statutFiltre, conteneur) {
-            const toutesLesCommandes = JSON.parse(localStorage.getItem("historiqueCommandes")) || [];
             conteneur.innerHTML = "";
 
-            const commandesDuVendeur = toutesLesCommandes.map(cmd => {
-                const produitsPourCeVendeur = cmd.produits.filter(p => {
-                    const tousLesProduits = [...produitsBase, ...(JSON.parse(localStorage.getItem("produitsVendeur")) || [])];
-                    const produitOriginal = tousLesProduits.find(prod => prod.nom === p.nom);
-                    return produitOriginal && produitOriginal.vendeur === nomVendeur;
-                });
-
-                if (produitsPourCeVendeur.length > 0) {
-                    const totalVendeur = produitsPourCeVendeur.reduce((acc, p) => acc + (p.prix * p.quantite), 0);
-                    return { ...cmd, produits: produitsPourCeVendeur, total: totalVendeur };
-                }
-                return null;
-            }).filter(Boolean);
-
-            const commandesFiltrees = commandesDuVendeur.filter(cmd => cmd.statut === statutFiltre);
+            const commandesFiltrees = commandesVendeurCache.filter(cmd => cmd.statut === statutFiltre);
 
             if (commandesFiltrees.length === 0) {
                 conteneur.innerHTML = `<p style="text-align:center; color:#888;">Aucune commande dans cette catégorie.</p>`;
@@ -408,7 +431,7 @@
 
                 carte.innerHTML = `
                     <div class="commande-entete">
-                        <div><strong>Commande :</strong> ${cmd.id}</div>
+                        <div><strong>Commande :</strong> ${cmd.id.slice(0, 8)}</div>
                         <div><strong>Date :</strong> ${new Date(cmd.date).toLocaleDateString('fr-FR')}</div>
                         <div><strong>Montant :</strong> ${cmd.total.toLocaleString()} FCFA</div>
                     </div>
@@ -439,83 +462,91 @@
             });
         }
 
-        function mettreAJourStatut(commandeId, telClient) {
+        async function mettreAJourStatut(commandeId, telClient) {
             const nouveauStatut = document.getElementById(`statut-${commandeId}`).value;
-            let toutesLesCommandes = JSON.parse(localStorage.getItem("historiqueCommandes")) || [];
 
-            const indexCommande = toutesLesCommandes.findIndex(cmd => cmd.id === commandeId);
-            if (indexCommande !== -1) {
-                toutesLesCommandes[indexCommande].statut = nouveauStatut;
-                localStorage.setItem("historiqueCommandes", JSON.stringify(toutesLesCommandes));
-                alert(`Statut de la commande ${commandeId} mis à jour à "${nouveauStatut}".`);
+            const { error } = await supabaseClient
+                .from('commandes')
+                .update({ statut: nouveauStatut })
+                .eq('id', commandeId);
 
-                const message = `Bonjour, le statut de votre commande Afrimarket n°${commandeId} est maintenant : *${nouveauStatut}*.`;
-                const urlWhatsApp = `https://wa.me/${telClient.replace(/\s/g, '')}?text=${encodeURIComponent(message)}`;
-                if (confirm("Voulez-vous notifier le client par WhatsApp ?")) {
-                    window.open(urlWhatsApp, '_blank');
-                }
-
-                const ongletActif = document.querySelector('.tab-link.active')?.innerText || 'En attente';
-                filtrerCommandes(ongletActif, document.querySelector('.tab-link.active'));
-                calculerPaiements();
-                calculerStatistiques();
+            if (error) {
+                alert("❌ Erreur lors de la mise à jour du statut : " + error.message);
+                return;
             }
+
+            alert(`Statut de la commande mis à jour à "${nouveauStatut}".`);
+
+            const message = `Bonjour, le statut de votre commande Afrimarket est maintenant : *${nouveauStatut}*.`;
+            const urlWhatsApp = `https://wa.me/${telClient.replace(/\s/g, '')}?text=${encodeURIComponent(message)}`;
+            if (confirm("Voulez-vous notifier le client par WhatsApp ?")) {
+                window.open(urlWhatsApp, '_blank');
+            }
+
+            await chargerCommandesVendeurDepuisSupabase();
+            const ongletActif = document.querySelector('.tab-link.active')?.innerText || 'En attente';
+            filtrerCommandes(ongletActif, document.querySelector('.tab-link.active'));
+            calculerPaiements();
+            calculerStatistiques();
         }
 
         // ================================================================
-        // STATS & PAIEMENTS
+        // STATS & PAIEMENTS - bases sur les vraies commandes Supabase
         // ================================================================
-        function calculerStatistiques() {
-            const toutesLesCommandes = JSON.parse(localStorage.getItem("historiqueCommandes")) || [];
-            const mesProduits = (JSON.parse(localStorage.getItem("produitsVendeur")) || []).filter(p => p.vendeur === nomVendeur);
-
+        async function calculerStatistiques() {
             const dateLimite = new Date();
             dateLimite.setDate(dateLimite.getDate() - 30);
-            const ventesMois = toutesLesCommandes.filter(cmd => new Date(cmd.date) > dateLimite && cmd.produits.some(p => mesProduits.find(mp => mp.nom === p.nom))).length;
+            const ventesMois = commandesVendeurCache.filter(cmd => new Date(cmd.date) > dateLimite).length;
             document.getElementById('stat-ventes').innerText = ventesMois;
 
             const compteurProduits = {};
-            toutesLesCommandes.forEach(cmd => {
+            commandesVendeurCache.forEach(cmd => {
                 cmd.produits.forEach(p => {
-                    if (mesProduits.find(mp => mp.nom === p.nom)) {
-                        compteurProduits[p.nom] = (compteurProduits[p.nom] || 0) + p.quantite;
-                    }
+                    compteurProduits[p.nom] = (compteurProduits[p.nom] || 0) + p.quantite;
                 });
             });
             const topProduit = Object.keys(compteurProduits).sort((a, b) => compteurProduits[b] - compteurProduits[a])[0];
             document.getElementById('stat-top-produit').innerText = topProduit || '-';
 
-            let totalNotes = 0, nbAvis = 0;
-            mesProduits.forEach(p => {
-                const avis = JSON.parse(localStorage.getItem(`avis_${p.nom}`)) || [];
-                avis.forEach(a => {
-                    totalNotes += a.note;
-                    nbAvis++;
-                });
-            });
-            const satisfaction = nbAvis > 0 ? (totalNotes / nbAvis).toFixed(1) + '/5' : 'N/A';
-            document.getElementById('stat-satisfaction').innerText = satisfaction;
+            // Satisfaction : moyenne des vrais avis Supabase sur les produits de ce vendeur
+            const { data: mesProduitsIds } = await supabaseClient
+                .from('produits')
+                .select('id')
+                .eq('vendeur_id', vendeurId);
+
+            const idsProduits = (mesProduitsIds || []).map(p => p.id);
+            if (idsProduits.length === 0) {
+                document.getElementById('stat-satisfaction').innerText = 'N/A';
+                return;
+            }
+
+            const { data: avisVendeur } = await supabaseClient
+                .from('avis')
+                .select('note')
+                .in('produit_id', idsProduits);
+
+            if (!avisVendeur || avisVendeur.length === 0) {
+                document.getElementById('stat-satisfaction').innerText = 'N/A';
+            } else {
+                const moyenne = avisVendeur.reduce((s, a) => s + a.note, 0) / avisVendeur.length;
+                document.getElementById('stat-satisfaction').innerText = moyenne.toFixed(1) + '/5';
+            }
         }
 
         function calculerPaiements() {
-            const toutesLesCommandes = JSON.parse(localStorage.getItem("historiqueCommandes")) || [];
             let montantAttente = 0;
             let montantDisponible = 0;
 
-            const produitsVendeur = JSON.parse(localStorage.getItem("produitsVendeur")) || [];
-            const commandesDuVendeur = toutesLesCommandes.filter(cmd => cmd.produits.some(p => produitsVendeur.find(mp => mp.nom === p.nom && mp.vendeur === nomVendeur)));
-
-            commandesDuVendeur.forEach(cmd => {
-                const totalVendeur = cmd.produits.filter(p => produitsVendeur.find(mp => mp.nom === p.nom && mp.vendeur === nomVendeur)).reduce((acc, p) => acc + p.prix * p.quantite, 0);
+            commandesVendeurCache.forEach(cmd => {
                 if (['En attente', 'En préparation', 'En cours de livraison'].includes(cmd.statut)) {
-                    montantAttente += totalVendeur;
+                    montantAttente += cmd.montantVendeur;
                 } else if (cmd.statut === 'Livrée') {
-                    montantDisponible += totalVendeur * 0.9;
+                    montantDisponible += cmd.montantVendeur;
                 }
             });
 
-            document.getElementById('paiement-attente').innerText = montantAttente.toLocaleString() + ' FCFA';
-            document.getElementById('paiement-disponible').innerText = montantDisponible.toLocaleString() + ' FCFA';
+            document.getElementById('paiement-attente').innerText = Math.round(montantAttente).toLocaleString() + ' FCFA';
+            document.getElementById('paiement-disponible').innerText = Math.round(montantDisponible).toLocaleString() + ' FCFA';
         }
 
         // ================================================================
