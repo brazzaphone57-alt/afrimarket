@@ -6,6 +6,8 @@
   <title>Détail produit - Afrimarket</title>
   <link rel="stylesheet" href="style.css" />
   <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js"></script>
 
   <style>
     :root { --main:#1a5c38; --accent:#e67e22; --bg:#f5f5f5; }
@@ -315,6 +317,13 @@
             </div>
           </div>
         </div>
+
+        <div class="fiche" id="section-avis" style="margin-top:16px;">
+          <h3 style="margin-top:0;">⭐ Avis clients</h3>
+          <div id="avis-resume">Chargement des avis...</div>
+          <div id="liste-avis"></div>
+          <div id="zone-nouvel-avis" style="margin-top:20px; border-top:1px solid #eee; padding-top:16px;"></div>
+        </div>
       `;
 
       // ==============================
@@ -348,6 +357,117 @@
           </div>
         </div>
       `;
+
+      chargerEtAfficherAvis(produit);
+    }
+
+    // ================================================================
+    // AVIS CLIENTS - lecture et envoi, connectes a Supabase
+    // ================================================================
+    async function chargerEtAfficherAvis(produit) {
+      const resumeEl = document.getElementById('avis-resume');
+      const listeEl = document.getElementById('liste-avis');
+      const zoneNouvelAvis = document.getElementById('zone-nouvel-avis');
+      if (!resumeEl) return;
+
+      if (!produit.id) {
+        resumeEl.innerHTML = '<p style="color:#888;">Les avis ne sont pas encore disponibles pour ce produit.</p>';
+        listeEl.innerHTML = '';
+        zoneNouvelAvis.innerHTML = '';
+        return;
+      }
+
+      const { data: avisListe, error } = await supabaseClient
+        .from('avis')
+        .select('*')
+        .eq('produit_id', produit.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !avisListe) {
+        resumeEl.innerHTML = '<p style="color:#c0392b;">Erreur de chargement des avis.</p>';
+        listeEl.innerHTML = '';
+      } else if (avisListe.length === 0) {
+        resumeEl.innerHTML = '<p style="color:#888;">Aucun avis pour l\'instant. Soyez le premier à donner votre avis !</p>';
+        listeEl.innerHTML = '';
+      } else {
+        const moyenne = avisListe.reduce((s, a) => s + a.note, 0) / avisListe.length;
+        const etoilesArrondies = Math.round(moyenne);
+        let etoilesHTML = '';
+        for (let i = 1; i <= 5; i++) etoilesHTML += i <= etoilesArrondies ? '★' : '☆';
+        resumeEl.innerHTML = `<div style="font-size:1.3em; color:#e67e22;">${etoilesHTML} <span style="font-size:0.6em; color:#666;">(${moyenne.toFixed(1)}/5 sur ${avisListe.length} avis)</span></div>`;
+
+        listeEl.innerHTML = avisListe.map(a => {
+          let etoiles = '';
+          for (let i = 1; i <= 5; i++) etoiles += i <= a.note ? '★' : '☆';
+          const commentaireSafe = (a.commentaire || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `
+            <div style="border-top:1px solid #eee; padding:10px 0;">
+              <div style="color:#e67e22;">${etoiles}</div>
+              ${commentaireSafe ? `<p style="margin:4px 0; color:#444;">${commentaireSafe}</p>` : ''}
+              <p style="margin:0; font-size:0.85em; color:#999;">${new Date(a.created_at).toLocaleDateString('fr-FR')}</p>
+            </div>
+          `;
+        }).join('');
+      }
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+
+      if (!session) {
+        zoneNouvelAvis.innerHTML = `<p>👉 <a href="login.html">Connectez-vous</a> pour laisser un avis sur ce produit.</p>`;
+        return;
+      }
+
+      zoneNouvelAvis.innerHTML = `
+        <h4 style="margin-top:0;">Laisser un avis</h4>
+        <div id="etoiles-choix" style="font-size:1.8em; cursor:pointer; color:#ccc; margin-bottom:10px; letter-spacing:4px;">
+          <span data-note="1">★</span><span data-note="2">★</span><span data-note="3">★</span><span data-note="4">★</span><span data-note="5">★</span>
+        </div>
+        <textarea id="commentaire-avis" placeholder="Votre commentaire (optionnel)" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ccc; border-radius:8px; min-height:70px;"></textarea>
+        <button class="btn-acc" style="margin-top:10px;" onclick="envoyerNouvelAvis('${produit.id}', produitCourantPourAvis)">Envoyer mon avis</button>
+      `;
+
+      window.noteChoisiePourAvis = 0;
+      document.querySelectorAll('#etoiles-choix span').forEach(span => {
+        span.addEventListener('click', () => {
+          window.noteChoisiePourAvis = Number(span.dataset.note);
+          document.querySelectorAll('#etoiles-choix span').forEach(s => {
+            s.style.color = Number(s.dataset.note) <= window.noteChoisiePourAvis ? '#e67e22' : '#ccc';
+          });
+        });
+      });
+
+      window.produitCourantPourAvis = produit;
+    }
+
+    async function envoyerNouvelAvis(produitId, produit) {
+      if (!window.noteChoisiePourAvis) {
+        alert('Veuillez choisir une note (1 à 5 étoiles) avant d\'envoyer votre avis.');
+        return;
+      }
+      const commentaire = document.getElementById('commentaire-avis').value.trim();
+      const { data: { session } } = await supabaseClient.auth.getSession();
+
+      if (!session) {
+        alert('Vous devez être connecté pour laisser un avis.');
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from('avis')
+        .insert({
+          produit_id: produitId,
+          client_id: session.user.id,
+          note: window.noteChoisiePourAvis,
+          commentaire: commentaire
+        });
+
+      if (error) {
+        alert("❌ Erreur lors de l'envoi de votre avis : " + error.message);
+        return;
+      }
+
+      alert('✅ Merci pour votre avis !');
+      chargerEtAfficherAvis(produit);
     }
 
     // Fonctions compatibilité : on tente d'utiliser celles de votre script.js, sinon fallback simple.
@@ -459,4 +579,3 @@
   </script>
 </body>
 </html>
-

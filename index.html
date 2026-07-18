@@ -372,18 +372,42 @@
 </script>
 
   <script>
+  let notesParProduitNom = {};
+
+  async function chargerNotesProduits() {
+    const idsReels = produitsVendeurCache.map(p => p.id).filter(Boolean);
+    if (idsReels.length === 0) return;
+
+    const { data: avisData, error } = await supabaseClient
+      .from('avis')
+      .select('produit_id, note')
+      .in('produit_id', idsReels);
+
+    if (error || !avisData) return;
+
+    const parId = {};
+    avisData.forEach(a => {
+      if (!parId[a.produit_id]) parId[a.produit_id] = [];
+      parId[a.produit_id].push(a.note);
+    });
+
+    produitsVendeurCache.forEach(p => {
+      const notes = parId[p.id];
+      if (notes && notes.length > 0) {
+        const moyenne = notes.reduce((s, n) => s + n, 0) / notes.length;
+        notesParProduitNom[p.nom] = { moyenne, nbAvis: notes.length };
+      }
+    });
+  }
+
   function getInfosNoteProduit(nomProduit) {
-    const cleAvis = "avis_" + nomProduit;
-    const avis = JSON.parse(localStorage.getItem(cleAvis)) || [];
-    if (avis.length === 0) return { moyenne: 0, nbAvis: 0, etoilesHTML: '<span style="color:#ccc;">Aucun avis</span>' };
+    const infos = notesParProduitNom[nomProduit];
+    if (!infos) return { moyenne: 0, nbAvis: 0, etoilesHTML: '<span style="color:#ccc;">Aucun avis</span>' };
 
-    const totalNotes = avis.reduce((sum, a) => sum + a.note, 0);
-    const moyenne = totalNotes / avis.length;
-    const etoilesArrondies = Math.round(moyenne);
-
+    const etoilesArrondies = Math.round(infos.moyenne);
     let etoilesHTML = '';
     for (let i = 1; i <= 5; i++) etoilesHTML += i <= etoilesArrondies ? '★' : '☆';
-    return { moyenne, nbAvis: avis.length, etoilesHTML };
+    return { moyenne: infos.moyenne, nbAvis: infos.nbAvis, etoilesHTML };
   }
 
   function getTexteStock(p) {
@@ -862,7 +886,9 @@
   }
 
   (async function initAfrimarket(){
+    supabaseClient.from('visites').insert({ page: 'accueil' }).then(()=>{}).catch(()=>{});
     await chargerProduitsVendeurDepuisSupabase();
+    await chargerNotesProduits();
     chargerProduitsDeBase();
     chargerProduitsVendeurs();
     chargerVentesFlash();
